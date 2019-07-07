@@ -9,18 +9,18 @@ struct Bounds {
     max: u64
 }
 
-struct BoundsProof {
+struct BoundsCheck {
     min: Scalar,
     max: Scalar,
     n: u8
 }
 
-impl Gadget<Bounds, u64> for BoundsProof {
-    fn new(instance_vars: &Bounds) -> BoundsProof {
+impl Gadget<Bounds, u64> for BoundsCheck {
+    fn new(instance_vars: &Bounds) -> BoundsCheck {
         // number of bits to represent max = floor(log2(max) + 1)
         let n: u8 = ((instance_vars.max as f64).log2() + 1.0).floor() as u8;
 
-        BoundsProof {
+        BoundsCheck {
             min: instance_vars.min.into(),
             max: instance_vars.max.into(),
             n: n
@@ -60,7 +60,7 @@ impl Gadget<Bounds, u64> for BoundsProof {
     }
 }
 
-impl BoundsProof {
+impl BoundsCheck {
     /// Enforces that the quantity of x is in the range [0, 2^n).
     fn range_proof(
         &self,
@@ -115,7 +115,7 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"BoundsCheck");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = BoundsProof::new(&instance_vars);
+        let gadget = BoundsCheck::new(&instance_vars);
         let commitments = gadget.prove(&mut prover, &witness_vars);
         let proof = prover.prove(&bp_gens).unwrap();
 

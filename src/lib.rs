@@ -19,4 +19,4 @@ mod macros;
 mod mimc_hash;
 mod conversions;
 mod gadget;
-mod bounds_proof;
+mod bounds_check;
