@@ -3,12 +3,13 @@ use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use rand::thread_rng;
 
+/// Gadget with instance variable type T and witness variable type U
 pub trait Gadget<T, U> {
     /// Constructor
     fn new(instance_vars: &T) -> Self;
 
-    /// Encode witness variables Vec<T> as Vec<Scalar> to commit to
-    fn preprocess(&self, witness_vars: &U) -> Vec<Scalar>;
+    /// Encode witnesses as Vec<Scalar> to commit to
+    fn preprocess(&self, witnesses: &U) -> Vec<Scalar>;
 
     /// Build the constraint system
     fn assemble(&self, cs: &mut ConstraintSystem, commitments: &Vec<Variable>, witnesses: Option<Vec<Scalar>>);
