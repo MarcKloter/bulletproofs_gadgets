@@ -3,26 +3,26 @@ use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use rand::thread_rng;
 
-pub trait Gadget {
+pub trait Gadget<T, U> {
     /// Constructor
-    fn new(instance_vars: &Vec<Vec<u8>>) -> Self;
+    fn new(instance_vars: &T) -> Self;
 
-    /// Encode witness variables Vec<Vec<u8>> as Vec<Scalar> to commit to
-    fn preprocess(&self, witness_vars: &Vec<Vec<u8>>) -> Vec<Scalar>;
+    /// Encode witness variables Vec<T> as Vec<Scalar> to commit to
+    fn preprocess(&self, witness_vars: &U) -> Vec<Scalar>;
 
     /// Build the constraint system
-    fn assemble(&self, cs: &mut ConstraintSystem, commitment_variables: &Vec<Variable>);
+    fn assemble(&self, cs: &mut ConstraintSystem, commitments: &Vec<Variable>, witnesses: Option<Vec<Scalar>>);
 
-    fn prove(&self, prover: &mut Prover, witness_vars: &Vec<Vec<u8>>) -> Vec<CompressedRistretto> {
-        let witness_vars = self.preprocess(witness_vars);
+    fn prove(&self, prover: &mut Prover, witnesses: &U) -> Vec<CompressedRistretto> {
+        let witness_scalars: Vec<Scalar> = self.preprocess(witnesses);
 
         // create pedersen commitments for witness variables
-        let (commitments, vars) = witness_vars
+        let (commitments, vars) = witness_scalars
             .iter()
             .map(|w| prover.commit(*w, Scalar::random(&mut thread_rng())))
             .unzip();
 
-        self.assemble(prover, &vars);
+        self.assemble(prover, &vars, Some(witness_scalars));
 
         commitments
     }
@@ -34,6 +34,6 @@ pub trait Gadget {
             .map(|commitment| verifier.commit(*commitment))
             .collect();
 
-        self.assemble(verifier, &vars);
+        self.assemble(verifier, &vars, None);
     }
 }
