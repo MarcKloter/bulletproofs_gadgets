@@ -1,9 +1,9 @@
 use crate::curve25519_dalek::scalar::Scalar;
 use crate::pkcs7;
 
-use super::mimc_consts::{ROUND_CONSTANTS_769};
+use super::mimc_consts::ROUND_CONSTANTS_769;
 
-use conversions::{to_scalars};
+use conversions::to_scalars;
 
 /// MiMC block cipher
 fn mimc_encryption(
