@@ -1,36 +1,33 @@
 use bulletproofs::r1cs::{ConstraintSystem, Variable, Prover, Verifier, LinearCombination};
 use bulletproofs::{BulletproofGens, PedersenGens};
-use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use gadget::Gadget;
-use macros;
 use super::mimc_consts::ROUND_CONSTANTS_769;
-use super::mimc::mimc_hash;
 
 struct MimcHash256 {
     image: Scalar,
     round_constants: Vec<Scalar>
 }
 
-impl Gadget for MimcHash256 {
-    fn new(instance_vars: &Vec<Vec<u8>>) -> MimcHash256 {
+impl Gadget<Vec<u8>, Vec<u8>> for MimcHash256 {
+    fn new(instance_vars: &Vec<u8>) -> MimcHash256 {
         let mut round_constants: Vec<Scalar> = Vec::new();
         for constant in ROUND_CONSTANTS_769.iter() {
             round_constants.push(Scalar::from_bytes_mod_order(*constant));
         }
 
         MimcHash256 {
-            image: Scalar::from_bytes_mod_order(slice_to_array!(&instance_vars[0][..32], 32)),
+            image: Scalar::from_bytes_mod_order(slice_to_array!(&instance_vars[..32], 32)),
             round_constants: round_constants
         }
     }
 
-    /// Encode witness variables Vec<Vec<u8>> as Vec<Scalar>
-    fn preprocess(&self, witness_vec: &Vec<Vec<u8>>) -> Vec<Scalar> {
+    /// Encode witness variables Vec<u8> as Vec<Scalar>
+    fn preprocess(&self, witness_vars: &Vec<u8>) -> Vec<Scalar> {
         let mut witness_scalar: Vec<Scalar> = Vec::new();
 
-        let mut preimage: Vec<u8> = witness_vec[0].clone();
+        let mut preimage: Vec<u8> = witness_vars.clone();
         const BLOCK_SIZE: usize = 32; // rate = 256 bits = 32 bytes
         pkcs7::pad(&mut preimage, BLOCK_SIZE as u8); // apply byte padding
         
@@ -41,8 +38,8 @@ impl Gadget for MimcHash256 {
         witness_scalar
     }
 
-    fn assemble(&self, cs: &mut ConstraintSystem, commitment_variables: &Vec<Variable>) {
-        let hash = self.mimc_sponge(cs, commitment_variables);
+    fn assemble(&self, cs: &mut ConstraintSystem, commitments: &Vec<Variable>, _: Option<Vec<Scalar>>) {
+        let hash = self.mimc_sponge(cs, commitments);
     
         // constrain hash - image = 0 <=> hash = image
         let image_lc: LinearCombination = self.image.into();
@@ -70,7 +67,7 @@ impl MimcHash256 {
         state
     }
 
-    pub fn mimc_encryption(
+    fn mimc_encryption(
         &self,
         cs: &mut ConstraintSystem,
         p: LinearCombination,
@@ -114,8 +111,8 @@ mod tests {
             0xf7, 0x05, 0x91, 0xb3, 0x51, 0xf5, 0xf0, 0x02
         ];
         
-        let instance_vars : Vec<Vec<u8>> = vec![image];
-        let witness_vars : Vec<Vec<u8>> = vec![preimage.to_vec()];
+        let instance_vars : Vec<u8> = image;
+        let witness_vars : Vec<u8> = preimage.to_vec();
 
         let pc_gens = PedersenGens::default();
         let bp_gens = BulletproofGens::new(4096, 1);
