@@ -3,38 +3,53 @@ use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use rand::thread_rng;
 
-/// Gadget with instance variable type T and witness variable type U
-pub trait Gadget<T, U> {
-    /// Constructor
-    fn new(instance_vars: &T) -> Self;
-
-    /// Encode witnesses as Vec<Scalar> to commit to
-    fn preprocess(&self, witnesses: &U) -> Vec<Scalar>;
+pub trait Gadget {
+    /// Preprocess witnesses to derive optional gadget-specific commitments 
+    fn preprocess(&self, witnesses: &Vec<Scalar>) -> Vec<Scalar>;
 
     /// Build the constraint system
-    fn assemble(&self, cs: &mut ConstraintSystem, commitments: &Vec<Variable>, witnesses: Option<Vec<Scalar>>);
+    fn assemble(
+        &self, 
+        cs: &mut ConstraintSystem, 
+        witnesses: &Vec<Variable>, 
+        derived_witnesses: &Vec<(Option<Scalar>, Variable)>
+    );
 
-    fn prove(&self, prover: &mut Prover, witnesses: &U) -> Vec<CompressedRistretto> {
-        let witness_scalars: Vec<Scalar> = self.preprocess(witnesses);
+    fn prove(
+        &self, 
+        prover: &mut Prover, 
+        witnesses: &Vec<Scalar>, 
+        commitment_vars: &Vec<Variable>
+    ) -> Vec<CompressedRistretto> {
+        let derived_scalars: Vec<Scalar> = self.preprocess(witnesses);
 
-        // create pedersen commitments for witness variables
-        let (commitments, vars) = witness_scalars
+        // create gadget-specific pedersen commitments
+        let mut commitments: Vec<CompressedRistretto> = Vec::new(); 
+        let derived_witnesses: Vec<(Option<Scalar>, Variable)> = derived_scalars
             .iter()
-            .map(|w| prover.commit(*w, Scalar::random(&mut thread_rng())))
-            .unzip();
+            .cloned()
+            .map(|scalar| {
+                let (com, var) = prover.commit(scalar, Scalar::random(&mut thread_rng()));
+                commitments.push(com);
+                (Some(scalar), var)
+            })
+            .collect();
 
-        self.assemble(prover, &vars, Some(witness_scalars));
+        self.assemble(prover, &commitment_vars, &derived_witnesses);
 
         commitments
     }
 
-    fn verify(&self, verifier: &mut Verifier, commitments: &Vec<CompressedRistretto>) {
+    fn verify(
+        &self, 
+        verifier: &mut Verifier, 
+        witnesses: &Vec<CompressedRistretto>, 
+        derived: &Vec<CompressedRistretto>
+    ) {
         // get variables from prover commitments
-        let vars = commitments
-            .iter()
-            .map(|commitment| verifier.commit(*commitment))
-            .collect();
+        let witness_vars = witnesses.iter().map(|commitment| verifier.commit(*commitment)).collect();
+        let derived_vars = derived.iter().map(|commitment| (None, verifier.commit(*commitment))).collect();
 
-        self.assemble(verifier, &vars, None);
+        self.assemble(verifier, &witness_vars, &derived_vars);
     }
 }
