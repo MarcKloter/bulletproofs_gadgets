@@ -1,3 +1,5 @@
+#![feature(box_syntax, box_patterns)]
+
 //------------------------------------------------------------------------
 // External dependencies
 //------------------------------------------------------------------------
@@ -6,6 +8,7 @@ extern crate curve25519_dalek;
 extern crate merlin;
 extern crate pkcs7;
 extern crate rand;
+extern crate hex;
 
 //------------------------------------------------------------------------
 // Public modules
@@ -20,3 +23,5 @@ mod mimc_hash;
 mod conversions;
 mod gadget;
 mod bounds_check;
+mod merkle_tree;
+mod commitments;
