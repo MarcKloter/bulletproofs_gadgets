@@ -3,11 +3,8 @@ use bulletproofs::{BulletproofGens, PedersenGens};
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use gadget::Gadget;
-
-struct Bounds {
-    min: u64,
-    max: u64
-}
+use commitments::commit;
+use conversions::{be_to_scalar, be_to_u64};
 
 struct BoundsCheck {
     min: Scalar,
@@ -15,36 +12,28 @@ struct BoundsCheck {
     n: u8
 }
 
-impl Gadget<Bounds, u64> for BoundsCheck {
-    fn new(instance_vars: &Bounds) -> BoundsCheck {
-        // number of bits to represent max = floor(log2(max) + 1)
-        let n: u8 = ((instance_vars.max as f64).log2() + 1.0).floor() as u8;
+impl Gadget for BoundsCheck {
+    fn preprocess(&self, witnesses: &Vec<Scalar>) -> Vec<Scalar> {
+        let mut derived_witnesses: Vec<Scalar> = Vec::new();
+        let v: Scalar = witnesses[0];
+        derived_witnesses.push(v - self.min);
+        derived_witnesses.push(self.max - v);
 
-        BoundsCheck {
-            min: instance_vars.min.into(),
-            max: instance_vars.max.into(),
-            n: n
-        }
+        derived_witnesses
     }
 
-    /// Encode witness variable as Vec<Scalar>, {0: v, 1: a, 2: b}
-    fn preprocess(&self, witness: &u64) -> Vec<Scalar> {
-        let mut witness_scalar: Vec<Scalar> = Vec::new();
-
-        witness_scalar.push((*witness).into());
-
-        let v: Scalar = witness_scalar[0];
-        witness_scalar.push(v - self.min);
-        witness_scalar.push(self.max - v);
-
-        witness_scalar
-    }
-
-    fn assemble(&self, cs: &mut ConstraintSystem, commitments: &Vec<Variable>, witnesses: Option<Vec<Scalar>>) {
+    fn assemble(
+        &self, 
+        cs: &mut ConstraintSystem, 
+        _: &Vec<Variable>, 
+        derived_witnesses: &Vec<(Option<Scalar>, Variable)>
+    ) {
+        let (a_assignment, a) = derived_witnesses[0];
+        let (b_assignment, b) = derived_witnesses[1];
         // a = v - min
-        let a_lc: LinearCombination = commitments[1].into();
+        let a_lc: LinearCombination = a.into();
         // b = max - v
-        let b_lc: LinearCombination = commitments[2].into();
+        let b_lc: LinearCombination = b.into();
 
         let a_plus_b: LinearCombination = a_lc.clone() + b_lc.clone();
         let max_minus_min: LinearCombination = (self.max - self.min).into();
@@ -53,14 +42,28 @@ impl Gadget<Bounds, u64> for BoundsCheck {
         cs.constrain(a_plus_b - max_minus_min);
 
         // Constrain a in [0, 2^n)
-        self.range_proof(cs, a_lc, witnesses.clone().map(|vec| vec[1]));
+        self.range_proof(cs, a_lc, a_assignment);
 
         // Constrain b in [0, 2^n)
-        self.range_proof(cs, b_lc, witnesses.clone().map(|vec| vec[2]));
+        self.range_proof(cs, b_lc, b_assignment);
     }
 }
 
 impl BoundsCheck {
+    /// # Arguments
+    /// * `min` - u64 as byte vector in big endian order 
+    /// * `max` - u64 as byte vector in big endian order 
+    fn new(min: &Vec<u8>, max: &Vec<u8>) -> BoundsCheck {
+        // number of bits to represent max = floor(log2(max) + 1)
+        let n: u8 = ((be_to_u64(max) as f64).log2() + 1.0).floor() as u8;
+
+        BoundsCheck {
+            min: be_to_scalar(min),
+            max: be_to_scalar(max),
+            n: n
+        }
+    }
+
     /// Enforces that the quantity of x is in the range [0, 2^n).
     fn range_proof(
         &self,
@@ -100,14 +103,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mimc_hash_gadget() {
-        let min: u64 = 10;
-        let max: u64 = 100;
-
-        let v: u64 = 67;
-        
-        let instance_vars: Bounds = Bounds { min: min, max: max };
-        let witness_vars: u64 = v;
+    fn test_bound_check_gadget() {
+        let min: Vec<u8> = vec![10];
+        let max: Vec<u8> = vec![100];
+        let witness: Vec<u8> = vec![67];
 
         let pc_gens = PedersenGens::default();
         let bp_gens = BulletproofGens::new(128, 1);
@@ -115,14 +114,15 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"BoundsCheck");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = BoundsCheck::new(&instance_vars);
-        let commitments = gadget.prove(&mut prover, &witness_vars);
+        let gadget = BoundsCheck::new(&min, &max);
+        let (scalars, witness_commitments, variables) = commit(&mut prover, &witness);
+        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"BoundsCheck");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         
-        gadget.verify(&mut verifier, &commitments);
+        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }
