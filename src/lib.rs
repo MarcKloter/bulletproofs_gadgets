@@ -11,19 +11,23 @@ extern crate rand;
 extern crate hex;
 
 //------------------------------------------------------------------------
+// Modules containing macros
+//------------------------------------------------------------------------
+#[macro_use]
+mod macros;
+#[macro_use]
+pub mod merkle_tree;
+
+//------------------------------------------------------------------------
 // Public modules
 //------------------------------------------------------------------------
+pub mod commitments;
+pub mod bounds_check;
+pub mod mimc_hash;
+pub mod gadget;
 
 //------------------------------------------------------------------------
 // Private modules
 //------------------------------------------------------------------------
-#[macro_use]
-mod macros;
-mod mimc_hash;
 mod conversions;
-mod gadget;
-mod bounds_check;
-#[macro_use]
-mod merkle_tree;
-mod commitments;
 mod tests;

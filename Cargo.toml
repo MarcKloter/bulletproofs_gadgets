@@ -30,3 +30,11 @@ hex = "0.3"
 criterion = "0.2"
 bincode = "1"
 rand_chacha = "0.1"
+
+[[bin]]
+name = "prover"
+path = "src/bin/prover.rs"
+
+[[bin]]
+name = "verifier"
+path = "src/bin/verifier.rs"

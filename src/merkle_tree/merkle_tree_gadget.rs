@@ -4,6 +4,7 @@ use gadget::Gadget;
 use conversions::{vars_to_lc, be_to_scalar};
 use mimc_hash::mimc_hash_gadget::MimcHash256;
 
+#[macro_export]
 macro_rules! hash {
     ($left:expr, $right:expr) => {
         Pattern::Hash(Box::new($left), Box::new($right))
