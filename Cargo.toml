@@ -1,5 +1,5 @@
 [package]
-name = "bulletproofs-gadgets"
+name = "bulletproofs_gadgets"
 version = "0.1.0"
 authors = ["Marc Kloter <marc.kloter@bluewin.ch>"]
 
@@ -17,6 +17,7 @@ merlin = "1"
 clear_on_drop = "0.2"
 
 pkcs7 = "1.0.0"
+hex = "0.3.2"
 
 [dependencies.bulletproofs]
 path = "../bulletproofs"
