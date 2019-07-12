@@ -66,11 +66,9 @@ impl MimcHash256 {
         }
     }
 
-    pub fn new(image: &Vec<u8>) -> MimcHash256 {
-        assert!(image.len() == 32, "the provided image is not 32 bytes");
-
+    pub fn new(image: LinearCombination) -> MimcHash256 {
         MimcHash256 {
-            image: be_to_scalar(image).into(),
+            image: image,
             round_constants: MimcHash256::get_round_constants()
         }
     }
@@ -167,12 +165,12 @@ mod tests {
             0x36, 0x63
         ];
 
-        let image: Vec<u8> = vec![
+        let image: Scalar = be_to_scalar(&vec![
             0x0d, 0x22, 0x03, 0x06, 0x9a, 0xc1, 0x5f, 0x58, 
             0x17, 0x2b, 0xae, 0x1b, 0x3a, 0xf9, 0x8d, 0x89, 
             0x82, 0xde, 0xef, 0x9d, 0xf3, 0x74, 0x82, 0xc1, 
             0xa9, 0x20, 0xb8, 0x83, 0x2e, 0xe8, 0x13, 0xa4
-        ];
+        ]);
 
         let pc_gens = PedersenGens::default();
         let bp_gens = BulletproofGens::new(2048, 1);
@@ -180,7 +178,7 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MiMCHash");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MimcHash256::new(&image);
+        let gadget = MimcHash256::new(image.into());
         let (scalars, witness_commitments, variables) = commit(&mut prover, &preimage);
         let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
         let proof = prover.prove(&bp_gens).unwrap();
@@ -201,12 +199,12 @@ mod tests {
             0x73, 0x20, 0x6f, 0x76, 0x65, 0x72, 0x20, 0x74
         ];
 
-        let image: Vec<u8> = vec![
+        let image: Scalar = be_to_scalar(&vec![
             0x01, 0x24, 0x54, 0x09, 0xf2, 0x8a, 0xe2, 0xf0, 
             0x76, 0x07, 0x7d, 0x4a, 0x40, 0xbd, 0x91, 0x55, 
             0x1b, 0x3a, 0x03, 0xb1, 0xad, 0x8a, 0xdb, 0x2b, 
             0x1d, 0xa1, 0x16, 0xd2, 0x9c, 0x60, 0xa8, 0x5c
-        ];
+        ]);
 
         let pc_gens = PedersenGens::default();
         let bp_gens = BulletproofGens::new(2048, 1);
@@ -214,7 +212,7 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MiMCHash");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MimcHash256::new(&image);
+        let gadget = MimcHash256::new(image.into());
         let (scalars, witness_commitments, variables) = commit(&mut prover, &preimage);
         let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
         let proof = prover.prove(&bp_gens).unwrap();
