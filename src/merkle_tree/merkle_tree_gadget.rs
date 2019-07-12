@@ -1,11 +1,7 @@
-use bulletproofs::r1cs::{ConstraintSystem, Variable, Prover, Verifier, LinearCombination};
-use bulletproofs::{BulletproofGens, PedersenGens};
-use curve25519_dalek::ristretto::CompressedRistretto;
+use bulletproofs::r1cs::{ConstraintSystem, Variable, LinearCombination};
 use curve25519_dalek::scalar::Scalar;
-use merlin::Transcript;
 use gadget::Gadget;
 use conversions::{vars_to_lc, be_to_scalar};
-use commitments::{commit_all_single, verifier_commit};
 use mimc_hash::mimc_hash_gadget::MimcHash256;
 
 macro_rules! hash {
@@ -85,6 +81,11 @@ impl MerkleTree256 {
 mod tests {
     use super::*;
     use super::Pattern::*;
+    use merlin::Transcript;
+    use commitments::{commit_all_single, verifier_commit};
+    use bulletproofs::{BulletproofGens, PedersenGens};
+    use bulletproofs::r1cs::{Prover, Verifier};
+    use curve25519_dalek::ristretto::CompressedRistretto;
 
     const W1: [u8; 32] = [
         0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 

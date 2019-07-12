@@ -1,10 +1,7 @@
-use bulletproofs::r1cs::{ConstraintSystem, Variable, Prover, Verifier, LinearCombination};
-use bulletproofs::{BulletproofGens, PedersenGens};
+use bulletproofs::r1cs::{ConstraintSystem, Variable, LinearCombination};
 use curve25519_dalek::scalar::Scalar;
-use merlin::Transcript;
 use gadget::Gadget;
-use conversions::{le_to_scalar, be_to_scalar, vars_to_lc};
-use commitments::{commit, verifier_commit};
+use conversions::{le_to_scalar, vars_to_lc};
 use super::mimc_consts::ROUND_CONSTANTS_769;
 
 pub struct MimcHash256 {
@@ -156,6 +153,11 @@ impl MimcHash256 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use merlin::Transcript;
+    use commitments::{commit, verifier_commit};
+    use bulletproofs::{BulletproofGens, PedersenGens};
+    use conversions::{be_to_scalar};
+    use bulletproofs::r1cs::{Prover, Verifier};
 
     #[test]
     fn test_mimc_hash_gadget_1() {

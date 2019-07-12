@@ -1,9 +1,6 @@
-use bulletproofs::r1cs::{ConstraintSystem, Variable, Prover, Verifier, LinearCombination};
-use bulletproofs::{BulletproofGens, PedersenGens};
+use bulletproofs::r1cs::{ConstraintSystem, Variable, LinearCombination};
 use curve25519_dalek::scalar::Scalar;
-use merlin::Transcript;
 use gadget::Gadget;
-use commitments::{commit, verifier_commit};
 use conversions::{be_to_scalar, be_to_u64};
 
 pub struct BoundsCheck {
@@ -101,6 +98,10 @@ impl BoundsCheck {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use commitments::{commit, verifier_commit};
+    use bulletproofs::{BulletproofGens, PedersenGens};
+    use merlin::Transcript;
+    use bulletproofs::r1cs::{Prover, Verifier};
 
     #[test]
     fn test_bound_check_gadget() {
