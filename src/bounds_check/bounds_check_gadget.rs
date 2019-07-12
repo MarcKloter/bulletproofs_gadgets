@@ -3,10 +3,10 @@ use bulletproofs::{BulletproofGens, PedersenGens};
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use gadget::Gadget;
-use commitments::commit;
+use commitments::{commit, verifier_commit};
 use conversions::{be_to_scalar, be_to_u64};
 
-struct BoundsCheck {
+pub struct BoundsCheck {
     min: Scalar,
     max: Scalar,
     n: u8
@@ -53,7 +53,7 @@ impl BoundsCheck {
     /// # Arguments
     /// * `min` - u64 as byte vector in big endian order 
     /// * `max` - u64 as byte vector in big endian order 
-    fn new(min: &Vec<u8>, max: &Vec<u8>) -> BoundsCheck {
+    pub fn new(min: &Vec<u8>, max: &Vec<u8>) -> BoundsCheck {
         // number of bits to represent max = floor(log2(max) + 1)
         let n: u8 = ((be_to_u64(max) as f64).log2() + 1.0).floor() as u8;
 
@@ -121,8 +121,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"BoundsCheck");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }

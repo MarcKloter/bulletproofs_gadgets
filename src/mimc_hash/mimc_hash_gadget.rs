@@ -4,7 +4,7 @@ use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use gadget::Gadget;
 use conversions::{le_to_scalar, be_to_scalar, vars_to_lc};
-use commitments::commit;
+use commitments::{commit, verifier_commit};
 use super::mimc_consts::ROUND_CONSTANTS_769;
 
 pub struct MimcHash256 {
@@ -185,8 +185,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -219,8 +220,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }

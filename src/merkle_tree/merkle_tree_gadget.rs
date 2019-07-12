@@ -5,7 +5,7 @@ use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use gadget::Gadget;
 use conversions::{vars_to_lc, be_to_scalar};
-use commitments::commit_all_single;
+use commitments::{commit_all_single, verifier_commit};
 use mimc_hash::mimc_hash_gadget::MimcHash256;
 
 macro_rules! hash {
@@ -16,12 +16,12 @@ macro_rules! hash {
 
 /// Example usage: hash!(Value, hash!(Value, Value))
 #[derive(Clone)]
-enum Pattern {
+pub enum Pattern {
     Hash(Box<Pattern>, Box<Pattern>),
     V
 }
 
-struct MerkleTree256 {
+pub struct MerkleTree256 {
     root: LinearCombination,
     pattern: Pattern,
     gadget: MimcHash256
@@ -42,7 +42,7 @@ impl Gadget for MerkleTree256 {
 }
 
 impl MerkleTree256 {    
-    fn new(root: &Vec<u8>, pattern: Pattern) -> MerkleTree256 {
+    pub fn new(root: &Vec<u8>, pattern: Pattern) -> MerkleTree256 {
         assert!(root.len() == 32, "the provided root image is not 32 bytes");
 
         MerkleTree256 {
@@ -214,8 +214,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -254,8 +255,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -293,8 +295,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -333,8 +336,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -372,8 +376,9 @@ mod tests {
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
         
-        gadget.verify(&mut verifier, &witness_commitments, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }

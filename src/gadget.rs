@@ -43,13 +43,12 @@ pub trait Gadget {
     fn verify(
         &self, 
         verifier: &mut Verifier, 
-        witnesses: &Vec<CompressedRistretto>, 
+        witnesses: &Vec<Variable>, 
         derived: &Vec<CompressedRistretto>
     ) {
         // get variables from prover commitments
-        let witness_vars = witnesses.iter().map(|commitment| verifier.commit(*commitment)).collect();
         let derived_vars = derived.iter().map(|commitment| (None, verifier.commit(*commitment))).collect();
 
-        self.assemble(verifier, &witness_vars, &derived_vars);
+        self.assemble(verifier, &witnesses, &derived_vars);
     }
 }

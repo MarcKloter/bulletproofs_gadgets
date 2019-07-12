@@ -1,4 +1,4 @@
-use bulletproofs::r1cs::{Variable, Prover};
+use bulletproofs::r1cs::{Variable, Prover, Verifier};
 use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use conversions::{be_to_scalar, be_to_scalars};
@@ -40,4 +40,8 @@ pub fn commit(prover: &mut Prover, witness: &Vec<u8>) -> (Vec<Scalar>, Vec<Compr
         .unzip();
 
     (scalars, commitments, variables)
+}
+
+pub fn verifier_commit(verifier: &mut Verifier, commitments: Vec<CompressedRistretto>) -> Vec<Variable> {
+    commitments.iter().map(|commitment| verifier.commit(*commitment)).collect()
 }
