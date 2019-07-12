@@ -23,5 +23,7 @@ mod mimc_hash;
 mod conversions;
 mod gadget;
 mod bounds_check;
+#[macro_use]
 mod merkle_tree;
 mod commitments;
+mod tests;

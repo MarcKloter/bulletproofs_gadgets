@@ -1,1 +1,1 @@
-mod bounds_check_gadget;
+pub mod bounds_check_gadget;

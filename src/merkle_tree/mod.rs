@@ -1,1 +1,2 @@
-mod merkle_tree_gadget;
+#[macro_use]
+pub mod merkle_tree_gadget;
