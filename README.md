@@ -1,4 +1,4 @@
-# bulletproofs-gadgets
+# bulletproofs_gadgets
 
 ## Running Unit Tests
 ```
