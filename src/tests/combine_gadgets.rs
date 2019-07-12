@@ -9,17 +9,14 @@ mod tests {
     use merkle_tree::merkle_tree_gadget::{MerkleTree256, Pattern, Pattern::*};
     use bounds_check::bounds_check_gadget::BoundsCheck;
     use mimc_hash::mimc_hash_gadget::MimcHash256;
-use conversions::{scalar_to_be};
 
     #[test]
     fn test_combine_gadgets() {
-        // ---------- SETUP ----------
-        let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(8192, 1);
-
-        // ---------- CREATE PROVER ----------
+        // ---------- PROVER ----------
+        let p_pc_gens = PedersenGens::default();
+        let p_bp_gens = BulletproofGens::new(8192, 1);
         let mut prover_transcript = Transcript::new(b"CombinedGadgets");
-        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+        let mut prover = Prover::new(&p_pc_gens, &mut prover_transcript);
 
         // ---------- WITNESSES ----------
         let val: Vec<u8> = vec![67];
@@ -73,9 +70,11 @@ use conversions::{scalar_to_be};
         let merkle_dc = p_merkle.prove(&mut prover, &vec![w2_scalar, w3_scalar], &vec![w2_var, w3_var]);
 
         // ---------- CREATE PROOF ----------
-        let proof = prover.prove(&bp_gens).unwrap();
+        let proof = prover.prove(&p_bp_gens).unwrap();
 
         // ---------- VERIFIER ----------
+        let v_pc_gens = PedersenGens::default();
+        let v_bp_gens = BulletproofGens::new(8192, 1);
         let mut verifier_transcript = Transcript::new(b"CombinedGadgets");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
@@ -93,11 +92,6 @@ use conversions::{scalar_to_be};
         v_merkle.verify(&mut verifier, &vec![witness_vars[1], witness_vars[2]], &merkle_dc);
 
         // ---------- VERIFY PROOF ----------
-        let result = verifier.verify(&proof, &pc_gens, &bp_gens);
-        match result {
-            Ok(_) => println!("SUCESS !"),
-            Err(msg) => println!("{}", msg)
-        }
-        //assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
+        assert!(verifier.verify(&proof, &v_pc_gens, &v_bp_gens).is_ok());
     }
 }
