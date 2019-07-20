@@ -9,6 +9,7 @@ extern crate merlin;
 extern crate pkcs7;
 extern crate rand;
 extern crate hex;
+extern crate regex;
 
 //------------------------------------------------------------------------
 // Modules containing macros
