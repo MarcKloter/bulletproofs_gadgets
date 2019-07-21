@@ -27,7 +27,7 @@ pub fn be_to_scalars(bytes: &Vec<u8>) -> Vec<Scalar> {
     le_to_scalars(&bytes)
 }
 
-/// Constructs a 32 Scalar from the given byte vector in little endian order
+/// Constructs a 32 byte Scalar from the given byte vector in little endian order
 pub fn le_to_scalar(bytes: &Vec<u8>) -> Scalar {
     assert!(bytes.len() <= 32, "the given vector is longer than 32 bytes");
 
@@ -41,7 +41,7 @@ pub fn le_to_scalar(bytes: &Vec<u8>) -> Scalar {
     scalar
 }
 
-/// Constructs a 32 Scalar from the given byte vector in big endian order
+/// Constructs a 32 byte Scalar from the given byte vector in big endian order
 pub fn be_to_scalar(bytes: &Vec<u8>) -> Scalar {
     let mut bytes = bytes.clone();
     bytes.reverse();
@@ -64,7 +64,7 @@ pub fn be_to_u64(bytes: &Vec<u8>) -> u64 {
     le_to_u64(&bytes)
 }
 
-/// Constructs a 32 Scalar from the given byte vector in big endian order
+/// Constructs a 32 byte Scalar from the given byte vector in big endian order
 pub fn scalar_to_be(scalar: &Scalar) -> Vec<u8> {
     let mut bytes: Vec<u8> = scalar.as_bytes().to_vec();
     bytes.reverse();
