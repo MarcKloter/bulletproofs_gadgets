@@ -3,6 +3,7 @@ use curve25519_dalek::scalar::Scalar;
 use gadget::Gadget;
 use conversions::{vars_to_lc, be_to_scalar};
 use mimc_hash::mimc_hash_gadget::MimcHash256;
+use std::fmt;
 
 #[macro_export]
 macro_rules! hash {
@@ -16,6 +17,15 @@ macro_rules! hash {
 pub enum Pattern {
     Hash(Box<Pattern>, Box<Pattern>),
     V
+}
+
+impl fmt::Display for Pattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Pattern::Hash(ref l, ref r) => write!(f, "H({} {})", l, r),
+            Pattern::V => write!(f, "V")
+        }
+    }
 }
 
 pub struct MerkleTree256 {
