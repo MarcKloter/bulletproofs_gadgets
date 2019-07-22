@@ -5,8 +5,10 @@ use std::convert::TryInto;
 /// Constructs 32 byte Scalars from the given byte vector in little endian order
 pub fn le_to_scalars(bytes: &Vec<u8>) -> Vec<Scalar> {
     let mut bytes = bytes.clone();
-    zero_padding!(bytes, 32 - (bytes.len() % 32));
-
+    if bytes.len() % 32 != 0 {
+        zero_padding!(bytes, 32 - (bytes.len() % 32));
+    }
+    
     let mut scalars: Vec<Scalar> = Vec::new();
 
     for i in (0..bytes.len()).step_by(32) {
@@ -32,8 +34,10 @@ pub fn le_to_scalar(bytes: &Vec<u8>) -> Scalar {
     assert!(bytes.len() <= 32, "the given vector is longer than 32 bytes");
 
     let mut bytes: Vec<u8> = bytes.clone();
-    zero_padding!(bytes, 32 - (bytes.len() % 32));
-    
+    if bytes.len() % 32 != 0 {
+        zero_padding!(bytes, 32 - (bytes.len() % 32));
+    }
+
     let _block: [u8; 32] = bytes[0..32].try_into().unwrap();
 
     let scalar: Scalar = Scalar::from_bits(_block);
