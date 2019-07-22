@@ -9,6 +9,8 @@ mod tests {
     use merkle_tree::merkle_tree_gadget::{MerkleTree256, Pattern, Pattern::*};
     use bounds_check::bounds_check_gadget::BoundsCheck;
     use mimc_hash::mimc_hash_gadget::MimcHash256;
+    use conversions::be_to_scalar;
+    use curve25519_dalek::scalar::Scalar;
 
     #[test]
     fn test_combine_gadgets() {
@@ -58,15 +60,15 @@ mod tests {
         //     I1
         //    /  \
         //  W2    W3
-        let root: Vec<u8> = vec![
+        let root: Scalar = be_to_scalar(&vec![
             0x0c, 0x8c, 0x87, 0xb6, 0x48, 0xe8, 0xfa, 0x0d, 
             0x97, 0x26, 0xee, 0x82, 0x25, 0xbe, 0x06, 0x28, 
             0x79, 0x4f, 0x2e, 0x1d, 0x1a, 0xb9, 0x32, 0x42, 
             0x1d, 0x45, 0x85, 0x1a, 0x35, 0xd8, 0x1a, 0xc1
-        ];
+        ]);
         let pattern: Pattern = hash!(V, V);
 
-        let p_merkle = MerkleTree256::new(&root, pattern.clone());
+        let p_merkle = MerkleTree256::new(root.into(), pattern.clone());
         let merkle_dc = p_merkle.prove(&mut prover, &vec![w2_scalar, w3_scalar], &vec![w2_var, w3_var]);
 
         // ---------- CREATE PROOF ----------
@@ -88,7 +90,7 @@ mod tests {
         v_hash.verify(&mut verifier, &vec![witness_vars[0]], &hash_dc);
 
         // ---------- MERKLE ----------
-        let v_merkle = MerkleTree256::new(&root, pattern.clone());
+        let v_merkle = MerkleTree256::new(root.into(), pattern.clone());
         v_merkle.verify(&mut verifier, &vec![witness_vars[1], witness_vars[2]], &merkle_dc);
 
         // ---------- VERIFY PROOF ----------
