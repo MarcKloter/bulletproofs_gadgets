@@ -26,9 +26,9 @@ pub mod commitments;
 pub mod bounds_check;
 pub mod mimc_hash;
 pub mod gadget;
+pub mod conversions;
 
 //------------------------------------------------------------------------
 // Private modules
 //------------------------------------------------------------------------
-mod conversions;
 mod tests;

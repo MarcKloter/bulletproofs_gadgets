@@ -1,103 +1,229 @@
 extern crate curve25519_dalek;
 extern crate merlin;
 extern crate bulletproofs;
-extern crate hex;
 #[macro_use]
 extern crate bulletproofs_gadgets;
+extern crate regex;
 
-use bulletproofs::r1cs::Prover;
+use bulletproofs::r1cs::{Prover, Variable, LinearCombination};
 use bulletproofs::{BulletproofGens, PedersenGens};
 use curve25519_dalek::ristretto::CompressedRistretto;
+use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use bulletproofs_gadgets::commitments::*;
 use bulletproofs_gadgets::gadget::Gadget;
 use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::{MerkleTree256, Pattern, Pattern::*};
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
+use bulletproofs_gadgets::conversions::be_to_scalar;
 
 use std::collections::HashMap;
 use std::io::prelude::*;
+use std::io::{BufReader};
 use std::fs::File;
+use std::env;
+use regex::Regex;
 
-/*
-TODO: Accepting Command Line Arguments https://doc.rust-lang.org/book/ch12-01-accepting-command-line-arguments.html
+type Commitment = (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>);
 
-BOUND W1 I1 I2
-HASH W2 W1
-MERKLE I3 W2 W3
+struct Parser {
 
-W1 = 67
-I1 = 10
-I2 = 100
-I3 = ROOT_HASH
-W2 = HASH
-W3 = HASH
-
-match(x) {
-    BOUND_regex:
-        let g1 = BoundCheck:new(d["I1"] as u64, d["I2"] as u64);
-        let comms = g1.
-        // add comms to global commitment hashmap with current regex matching as name (so verifier can do the same)
-
-    MERKLE_regex:
-        
 }
-*/
-    
+
+impl Parser {
+
+}
+
+fn parse(pattern: &[String]) -> Pattern {
+    match pattern[0].as_ref() {
+        "(" => {
+            let mut separator = 0;
+            if pattern[1] != "(" {
+                separator = 2;
+            } else {
+                let mut level = 0;
+                for (i, symbol) in pattern[1..].iter().enumerate() {
+                    match symbol.as_ref() {
+                        "(" => level += 1,
+                        ")" => {
+                            level -= 1;
+                            if level == 0 {
+                                separator = i + 2;
+                                break;
+                            }
+                        },
+                        _ => ()
+                    }
+                }
+            }
+
+            return hash!(
+                parse(&pattern[1..separator]), 
+                parse(&pattern[separator..pattern.len()])
+            );
+        },
+        "W" => return W,
+        "I" => return I,
+        _ => panic!("invalid state")
+    }
+}
+
 fn main() -> std::io::Result<()> {
+    // ---------- COLLECT CMD LINE ARGUMENT VALUES ----------
+    let filename = Box::leak(env::args().nth(1).expect("missing argument").into_boxed_str());
+
     // ---------- SETUP ----------
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(8192, 1);
+    // TODO: assign number of gens per gadget (shared between prover/verifier)
 
     // ---------- CREATE PROVER ----------
-    let mut prover_transcript = Transcript::new(b"CombinedGadgets");
-    let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+    let mut transcript = Transcript::new(filename.as_bytes());
+    let mut prover = Prover::new(&pc_gens, &mut transcript);
 
-    // ---------- WITNESSES ----------
-    let val: Vec<u8> = vec![67];
-    let (w1_scalar, w1_commitment, w1_var) = commit(&mut prover, &val);
-    
-    let image: Vec<u8> = vec![
-        0x0c, 0xfb, 0x0c, 0x17, 0x61, 0x82, 0x11, 0xc6, 
-        0x07, 0xfe, 0xbf, 0x70, 0x3a, 0xc3, 0xf3, 0x07, 
-        0x8f, 0x7d, 0x96, 0x79, 0x8f, 0xae, 0x9d, 0x4a, 
-        0x16, 0x82, 0xbc, 0x59, 0x2f, 0x7c, 0xb1, 0x26
-    ];
-    let (w2_scalar, w2_commitment, w2_var) = commit_single(&mut prover, &image);
-    
-    let merkle_leaf: Vec<u8> = vec![
-        0x09, 0x24, 0x33, 0x33, 0xe3, 0x74, 0xe7, 0x6e, 
-        0x49, 0x75, 0xab, 0x48, 0xae, 0x38, 0x24, 0x1b, 
-        0xa6, 0x78, 0x05, 0xcd, 0x60, 0xf1, 0x52, 0x3e, 
-        0x9b, 0x79, 0xa4, 0x8d, 0xaa, 0xc9, 0xa8, 0x4d
-    ];
-    let (w3_scalar, w3_commitment, w3_var) = commit_single(&mut prover, &merkle_leaf);
+    // ---------- ASSIGNMENTS ----------
+    let mut instance_vars: HashMap<String, Vec<u8>> = HashMap::new();
+    let mut witness_coms: HashMap<String, Commitment> = HashMap::new();
 
-    // ---------- BOUNDS ----------
-    let min: Vec<u8> = vec![10];
-    let max: Vec<u8> = vec![100];
+    let file = File::open(format!("{}.assignments", filename))?;
+    for line in BufReader::new(file).lines() {
+        let string = line.unwrap();
+        let re = Regex::new(r"^(I\d+?) = 0x([[:alnum:]]+?)$").unwrap();
+        assert!(re.is_match(&string), format!("invalid assignment entry: {}", string));
 
-    let p_bounds = BoundsCheck::new(&min, &max);
-    let bounds_dc = p_bounds.prove(&mut prover, &w1_scalar, &w1_var);
+        let cap = re.captures(&string).unwrap();
+        let bytes = hex::decode(&cap[2]).unwrap();
+        instance_vars.insert(cap[1].to_string(), bytes);
+    }
 
-    // ---------- HASH ----------
-    let p_hash = MimcHash256::new(w2_var.into());
-    let hash_dc = p_hash.prove(&mut prover, &w1_scalar, &w1_var);
+    let file = File::open(format!("{}.witnesses", filename))?;
+    for line in BufReader::new(file).lines() {
+        let string = line.unwrap();
+        let re = Regex::new(r"^(W\d+?) = 0x([[:alnum:]]+?)$").unwrap();
+        assert!(re.is_match(&string), format!("invalid assignment entry: {}", string));
 
-    // ---------- MERKLE ----------
-    //     I1
-    //    /  \
-    //  W2    W3
-    let root: Vec<u8> = vec![
-        0x0c, 0x8c, 0x87, 0xb6, 0x48, 0xe8, 0xfa, 0x0d, 
-        0x97, 0x26, 0xee, 0x82, 0x25, 0xbe, 0x06, 0x28, 
-        0x79, 0x4f, 0x2e, 0x1d, 0x1a, 0xb9, 0x32, 0x42, 
-        0x1d, 0x45, 0x85, 0x1a, 0x35, 0xd8, 0x1a, 0xc1
-    ];
-    let pattern: Pattern = hash!(V, V);
+        let cap = re.captures(&string).unwrap();
+        let bytes = hex::decode(&cap[2]).unwrap();
+        witness_coms.insert(cap[1].to_string(), commit(&mut prover, &bytes));
+    }
 
-    let p_merkle = MerkleTree256::new(&root, pattern.clone());
-    let merkle_dc = p_merkle.prove(&mut prover, &vec![w2_scalar, w3_scalar], &vec![w2_var, w3_var]);
+    // ---------- GADGETS ----------
+    let mut derived_coms: HashMap<String, CompressedRistretto> = HashMap::new();
+    let file = File::open(format!("{}.gadgets", filename))?;
+    for (index, line) in BufReader::new(file).lines().enumerate() {
+        let string = line.unwrap();
+        let re = Regex::new(r"^([[:alnum:]]+?) (.*)$").unwrap();
+        assert!(re.is_match(&string), format!("invalid gadget entry: {}", string));
+        
+        let cap = re.captures(&string).unwrap();
+        let gadget = cap[1].to_string();
+        let args = &cap[2];
+
+        match gadget.as_ref() {
+            "BOUND" => {
+                let re = Regex::new(r"^(W\d+?) (I\d+?) (I\d+?)$").unwrap();
+                assert!(re.is_match(&args), format!("invalid BOUND arguments: {}", args));
+                let cap = re.captures(&args).unwrap();
+                
+                let witness = witness_coms.get(&cap[1]).expect(&format!("missing witness var {}", &cap[1]));
+                assert!(witness.0.len() == 1, format!("witness var {} is longer than 32 bytes", &cap[1]));
+
+                let min: Vec<u8> = instance_vars.get(&cap[2]).expect(&format!("missing instance var {}", &cap[2])).to_vec();
+                assert!(min.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[2]));
+                let max: Vec<u8> = instance_vars.get(&cap[3]).expect(&format!("missing instance var {}", &cap[3])).to_vec();
+                assert!(max.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[3]));
+
+                let gadget = BoundsCheck::new(&min, &max);
+                let coms = gadget.prove(&mut prover, &witness.0, &witness.2);
+
+                for (i, dc) in coms.iter().enumerate() {
+                    derived_coms.insert(format!("D{}-{}", index, i), dc.clone());
+                }
+            },
+            "HASH"  => {
+                let re = Regex::new(r"^(([W|I]{1})\d+?) (W\d+?)$").unwrap();
+                assert!(re.is_match(&args), format!("invalid HASH arguments: {}", args));
+                let cap = re.captures(&args).unwrap();
+
+                let image: LinearCombination = match cap[2].to_string().as_ref() {
+                    "W" => {
+                        let com = witness_coms.get(&cap[1]).expect(&format!("missing witness var {}", &cap[1]));
+                        assert!(com.0.len() == 1, format!("witness var {} is longer than 32 bytes", &cap[1]));
+                        com.2[0].into()
+                    },
+                    "I" => {
+                        let var = instance_vars.get(&cap[1]).expect(&format!("missing instance var {}", &cap[1]));
+                        assert!(var.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[1]));
+                        be_to_scalar(var).into()
+                    },
+                    _ => panic!("invalid state")
+                };
+
+                let preimage = witness_coms.get(&cap[3]).expect(&format!("missing witness var {}", &cap[3]));
+
+                let gadget = MimcHash256::new(image);
+                let coms = gadget.prove(&mut prover, &preimage.0, &preimage.2);
+
+                for (i, dc) in coms.iter().enumerate() {
+                    derived_coms.insert(format!("D{}-{}", index, i), dc.clone());
+                }
+            },
+            "MERKLE" => {
+                let re = Regex::new(r"^([W|I]{1}\d+?) (.*)$").unwrap();
+                assert!(re.is_match(&args), format!("invalid MERKLE arguments: {}", args));
+                let cap = re.captures(&args).unwrap();
+
+                let root: LinearCombination = match cap[1].chars().nth(0).unwrap() {
+                    'W' => {
+                        let com = witness_coms.get(&cap[1]).expect(&format!("missing witness var {}", &cap[1]));
+                        assert!(com.0.len() == 1, format!("witness var {} is longer than 32 bytes", &cap[1]));
+                        com.2[0].into()
+                    },
+                    'I' => {
+                        let var = instance_vars.get(&cap[1]).expect(&format!("missing instance var {}", &cap[1]));
+                        assert!(var.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[1]));
+                        be_to_scalar(var).into()
+                    },
+                    _ => panic!("invalid state")
+                };
+
+                let mut w_scalars: Vec<Scalar> = Vec::new();
+                let mut w_variables: Vec<Variable> = Vec::new();
+                let mut i_variables: Vec<Vec<u8>> = Vec::new();
+
+                // parse pattern
+                let re = Regex::new(r"\(|\)|W|I").unwrap();
+                let mut brackets = Vec::new();
+                for cap in re.captures_iter(&cap[2]) {
+                    brackets.push(cap[0].to_string());
+                }
+                let pattern = parse(&brackets[..]);
+
+                // parse witness and instance variables
+                let re = Regex::new(r"W\d+?|I\d+?").unwrap();
+                for cap in re.captures_iter(&cap[2]) {
+                    match &cap[0].chars().nth(0).unwrap() {
+                        'W' => {
+                            let com = witness_coms.get(&cap[0]).expect(&format!("missing witness var {}", &cap[0]));
+                            assert!(com.0.len() == 1, format!("witness var {} is longer than 32 bytes", &cap[0]));
+                            w_scalars.push(com.0[0]);
+                            w_variables.push(com.2[0]);
+                        },
+                        'I' => {
+                            let var = instance_vars.get(&cap[0]).expect(&format!("missing instance var {}", &cap[0]));
+                            assert!(var.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[0]));
+                            i_variables.push(var.to_vec());
+                        },
+                        _ => panic!("invalid state")
+                    }
+                }
+                
+                let gadget = MerkleTree256::new(root, i_variables, pattern.clone());
+                let _ = gadget.prove(&mut prover, &w_scalars, &w_variables);
+            },
+            _ => panic!("unknown gadget: {}", gadget)
+        }
+    }
 
     // ---------- CREATE PROOF ----------
     let proof = prover.prove(&bp_gens).unwrap();
@@ -107,34 +233,17 @@ fn main() -> std::io::Result<()> {
     file.write_all(&proof.to_bytes())?;
 
     // ---------- WRITE COMMITMENTS TO FILE ----------
-    // TODO: when writing parser, move these .push() to the correspoding match cases
-    let mut witness_commitments: Vec<CompressedRistretto> = Vec::new();
-    witness_commitments.push(w1_commitment[0].clone());
-    witness_commitments.push(w2_commitment.clone());
-    witness_commitments.push(w3_commitment.clone());
-
-    // NOTE (important): Commitments MUST be done beforehand (all W1-Wx)
-    // otherwise the derived commitments need to be done in between (which makes things hard)
-
     let mut file = File::create("test.commitments")?;
-    for (i, commitment) in witness_commitments.iter().enumerate() {
-        let o = format!("C{}: 0x{}\n", i, hex::encode(commitment.as_bytes()));
-        file.write_all(o.as_bytes())?;
+    for (key, (_, commitments, _)) in witness_coms {
+        for (j, commitment) in commitments.iter().enumerate() {
+            let o = format!("C{}-{} = 0x{}\n", &key[1..], j, hex::encode(commitment.as_bytes()));
+            file.write_all(o.as_bytes())?;
+        }
     }
 
     // ---------- WRITE DERIVED COMMITMENTS TO FILE ----------
-    // TODO: when writing parser, move these .insert() to the correspoding match cases
-    let mut derived_commitments: HashMap<String, CompressedRistretto> = HashMap::new();
-    // NOTE: this numbering is done so there can be variable derived commitments per gadget
-    derived_commitments.insert("D1:0".to_string(), bounds_dc[0].clone());
-    derived_commitments.insert("D1:1".to_string(), bounds_dc[1].clone());
-    for (i, dc) in hash_dc.iter().enumerate() {
-        derived_commitments.insert(format!("D2:{}", i), dc.clone());
-    }
-    // no derived commitment for merkle tree gadget
-
-    for (i, commitment) in derived_commitments {
-        let o = format!("{}: 0x{}\n", i, hex::encode(commitment.as_bytes()));
+    for (key, commitment) in derived_coms {
+        let o = format!("{} = 0x{}\n", key, hex::encode(commitment.as_bytes()));
         file.write_all(o.as_bytes())?;
     }
 
