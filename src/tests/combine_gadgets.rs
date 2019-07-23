@@ -66,9 +66,9 @@ mod tests {
             0x79, 0x4f, 0x2e, 0x1d, 0x1a, 0xb9, 0x32, 0x42, 
             0x1d, 0x45, 0x85, 0x1a, 0x35, 0xd8, 0x1a, 0xc1
         ]);
-        let pattern: Pattern = hash!(V, V);
+        let pattern: Pattern = hash!(W, W);
 
-        let p_merkle = MerkleTree256::new(root.into(), pattern.clone());
+        let p_merkle = MerkleTree256::new(root.into(), Vec::new(), pattern.clone());
         let merkle_dc = p_merkle.prove(&mut prover, &vec![w2_scalar, w3_scalar], &vec![w2_var, w3_var]);
 
         // ---------- CREATE PROOF ----------
@@ -83,15 +83,18 @@ mod tests {
 
         // ---------- BOUNDS ----------
         let v_bounds = BoundsCheck::new(&min, &max);
-        v_bounds.verify(&mut verifier, &vec![witness_vars[0]], &bounds_dc);
+        let bounds_vars = verifier_commit(&mut verifier, bounds_dc);
+        v_bounds.verify(&mut verifier, &vec![witness_vars[0]], &bounds_vars);
 
         // ---------- HASH ----------
         let v_hash = MimcHash256::new(witness_vars[1].into());
-        v_hash.verify(&mut verifier, &vec![witness_vars[0]], &hash_dc);
+        let hash_vars = verifier_commit(&mut verifier, hash_dc);
+        v_hash.verify(&mut verifier, &vec![witness_vars[0]], &hash_vars);
 
         // ---------- MERKLE ----------
-        let v_merkle = MerkleTree256::new(root.into(), pattern.clone());
-        v_merkle.verify(&mut verifier, &vec![witness_vars[1], witness_vars[2]], &merkle_dc);
+        let v_merkle = MerkleTree256::new(root.into(), Vec::new(), pattern.clone());
+        let merkle_vars = verifier_commit(&mut verifier, merkle_dc);
+        v_merkle.verify(&mut verifier, &vec![witness_vars[1], witness_vars[2]], &merkle_vars);
 
         // ---------- VERIFY PROOF ----------
         assert!(verifier.verify(&proof, &v_pc_gens, &v_bp_gens).is_ok());

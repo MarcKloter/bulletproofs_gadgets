@@ -19,6 +19,7 @@ clear_on_drop = "0.2"
 pkcs7 = "1.0.0"
 hex = "0.3.2"
 regex = "1.1.9"
+libmath = "0.2.1"
 
 [dependencies.bulletproofs]
 path = "../bulletproofs"

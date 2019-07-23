@@ -245,8 +245,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
     
@@ -289,8 +290,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -330,8 +332,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -370,8 +373,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -411,8 +415,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -451,8 +456,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }

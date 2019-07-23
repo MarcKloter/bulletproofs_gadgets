@@ -4,13 +4,14 @@ extern crate bulletproofs;
 #[macro_use]
 extern crate bulletproofs_gadgets;
 extern crate regex;
+extern crate math;
 
 use bulletproofs::r1cs::{Prover, Variable, LinearCombination};
 use bulletproofs::{BulletproofGens, PedersenGens};
 use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use bulletproofs_gadgets::commitments::*;
+use bulletproofs_gadgets::commitments::commit;
 use bulletproofs_gadgets::gadget::Gadget;
 use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::{MerkleTree256, Pattern, Pattern::*};
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
@@ -23,8 +24,16 @@ use std::io::{BufReader};
 use std::fs::File;
 use std::env;
 use regex::Regex;
+use math::round;
 
 type Commitment = (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>);
+
+// file extensions
+const INSTANCE_VARS_EXT: &str = ".inst";
+const WITNESS_VARS_EXT: &str = ".wtns";
+const GADGETS_EXT: &str = ".gadgets";
+const PROOF_EXT: &str = ".proof";
+const COMMITMENTS_EXT: &str = ".coms";
 
 struct Parser {
 
@@ -32,6 +41,10 @@ struct Parser {
 
 impl Parser {
 
+}
+
+fn round_pow2(num: usize) -> usize {
+    2_usize.pow(round::ceil((num as f64).log2(), 0) as u32)
 }
 
 fn parse(pattern: &[String]) -> Pattern {
@@ -68,24 +81,32 @@ fn parse(pattern: &[String]) -> Pattern {
     }
 }
 
+fn format_com(
+    identifier: &str, 
+    gadget_no: &str, 
+    com_idx: &usize, 
+    com: &CompressedRistretto
+) -> Vec<u8> {
+    format!("{}{}-{} = 0x{}\n", identifier, gadget_no, com_idx, hex::encode(com.as_bytes())).into_bytes()
+}
+
 fn main() -> std::io::Result<()> {
-    // ---------- COLLECT CMD LINE ARGUMENT VALUES ----------
+    // ---------- COLLECT CMD LINE ARGUMENTS ----------
     let filename = Box::leak(env::args().nth(1).expect("missing argument").into_boxed_str());
 
-    // ---------- SETUP ----------
-    let pc_gens = PedersenGens::default();
-    let bp_gens = BulletproofGens::new(8192, 1);
-    // TODO: assign number of gens per gadget (shared between prover/verifier)
+    let mut no_of_bp_gens = 0;
 
     // ---------- CREATE PROVER ----------
     let mut transcript = Transcript::new(filename.as_bytes());
+    let pc_gens = PedersenGens::default();
     let mut prover = Prover::new(&pc_gens, &mut transcript);
 
     // ---------- ASSIGNMENTS ----------
+    let mut coms_file = File::create(format!("{}{}", filename, COMMITMENTS_EXT))?;
     let mut instance_vars: HashMap<String, Vec<u8>> = HashMap::new();
     let mut witness_coms: HashMap<String, Commitment> = HashMap::new();
 
-    let file = File::open(format!("{}.assignments", filename))?;
+    let file = File::open(format!("{}{}", filename, INSTANCE_VARS_EXT))?;
     for line in BufReader::new(file).lines() {
         let string = line.unwrap();
         let re = Regex::new(r"^(I\d+?) = 0x([[:alnum:]]+?)$").unwrap();
@@ -96,20 +117,24 @@ fn main() -> std::io::Result<()> {
         instance_vars.insert(cap[1].to_string(), bytes);
     }
 
-    let file = File::open(format!("{}.witnesses", filename))?;
+    let file = File::open(format!("{}{}", filename, WITNESS_VARS_EXT))?;
     for line in BufReader::new(file).lines() {
         let string = line.unwrap();
-        let re = Regex::new(r"^(W\d+?) = 0x([[:alnum:]]+?)$").unwrap();
+        let re = Regex::new(r"^(W)(\d+?) = 0x([[:alnum:]]+?)$").unwrap();
         assert!(re.is_match(&string), format!("invalid assignment entry: {}", string));
 
         let cap = re.captures(&string).unwrap();
-        let bytes = hex::decode(&cap[2]).unwrap();
-        witness_coms.insert(cap[1].to_string(), commit(&mut prover, &bytes));
+        let bytes = hex::decode(&cap[3]).unwrap();
+        let commitment = commit(&mut prover, &bytes);
+        witness_coms.insert(format!("{}{}", &cap[1], &cap[2]), commitment.clone());
+        for (i, com) in commitment.1.iter().enumerate() {
+            coms_file.write_all(&format_com("C", &cap[2], &i, com))?;
+        }
     }
 
     // ---------- GADGETS ----------
     let mut derived_coms: HashMap<String, CompressedRistretto> = HashMap::new();
-    let file = File::open(format!("{}.gadgets", filename))?;
+    let file = File::open(format!("{}{}", filename, GADGETS_EXT))?;
     for (index, line) in BufReader::new(file).lines().enumerate() {
         let string = line.unwrap();
         let re = Regex::new(r"^([[:alnum:]]+?) (.*)$").unwrap();
@@ -133,25 +158,28 @@ fn main() -> std::io::Result<()> {
                 let max: Vec<u8> = instance_vars.get(&cap[3]).expect(&format!("missing instance var {}", &cap[3])).to_vec();
                 assert!(max.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[3]));
 
+                no_of_bp_gens += 16;
+
                 let gadget = BoundsCheck::new(&min, &max);
                 let coms = gadget.prove(&mut prover, &witness.0, &witness.2);
 
                 for (i, dc) in coms.iter().enumerate() {
                     derived_coms.insert(format!("D{}-{}", index, i), dc.clone());
+                    coms_file.write_all(&format_com("D", &index.to_string(), &i, dc))?;
                 }
             },
             "HASH"  => {
-                let re = Regex::new(r"^(([W|I]{1})\d+?) (W\d+?)$").unwrap();
+                let re = Regex::new(r"^([W|I]{1}\d+?) (W\d+?)$").unwrap();
                 assert!(re.is_match(&args), format!("invalid HASH arguments: {}", args));
                 let cap = re.captures(&args).unwrap();
 
-                let image: LinearCombination = match cap[2].to_string().as_ref() {
-                    "W" => {
+                let image: LinearCombination = match cap[1].chars().nth(0).unwrap() {
+                    'W' => {
                         let com = witness_coms.get(&cap[1]).expect(&format!("missing witness var {}", &cap[1]));
                         assert!(com.0.len() == 1, format!("witness var {} is longer than 32 bytes", &cap[1]));
                         com.2[0].into()
                     },
-                    "I" => {
+                    'I' => {
                         let var = instance_vars.get(&cap[1]).expect(&format!("missing instance var {}", &cap[1]));
                         assert!(var.len() <= 32, format!("instance var {} is longer than 32 bytes", &cap[1]));
                         be_to_scalar(var).into()
@@ -159,13 +187,16 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                let preimage = witness_coms.get(&cap[3]).expect(&format!("missing witness var {}", &cap[3]));
+                let preimage = witness_coms.get(&cap[2]).expect(&format!("missing witness var {}", &cap[2]));
+
+                no_of_bp_gens += (preimage.1.len() + 1) * 512;
 
                 let gadget = MimcHash256::new(image);
                 let coms = gadget.prove(&mut prover, &preimage.0, &preimage.2);
 
                 for (i, dc) in coms.iter().enumerate() {
                     derived_coms.insert(format!("D{}-{}", index, i), dc.clone());
+                    coms_file.write_all(&format_com("D", &index.to_string(), &i, dc))?;
                 }
             },
             "MERKLE" => {
@@ -217,6 +248,9 @@ fn main() -> std::io::Result<()> {
                         _ => panic!("invalid state")
                     }
                 }
+
+                no_of_bp_gens += w_variables.len() * 512;
+                no_of_bp_gens += i_variables.len() * 512;
                 
                 let gadget = MerkleTree256::new(root, i_variables, pattern.clone());
                 let _ = gadget.prove(&mut prover, &w_scalars, &w_variables);
@@ -224,28 +258,14 @@ fn main() -> std::io::Result<()> {
             _ => panic!("unknown gadget: {}", gadget)
         }
     }
-
+    
     // ---------- CREATE PROOF ----------
+    let bp_gens = BulletproofGens::new(round_pow2(no_of_bp_gens), 1);
     let proof = prover.prove(&bp_gens).unwrap();
 
     // ---------- WRITE PROOF TO FILE ----------
-    let mut file = File::create("test.proof")?;
+    let mut file = File::create(format!("{}{}", filename, PROOF_EXT))?;
     file.write_all(&proof.to_bytes())?;
-
-    // ---------- WRITE COMMITMENTS TO FILE ----------
-    let mut file = File::create("test.commitments")?;
-    for (key, (_, commitments, _)) in witness_coms {
-        for (j, commitment) in commitments.iter().enumerate() {
-            let o = format!("C{}-{} = 0x{}\n", &key[1..], j, hex::encode(commitment.as_bytes()));
-            file.write_all(o.as_bytes())?;
-        }
-    }
-
-    // ---------- WRITE DERIVED COMMITMENTS TO FILE ----------
-    for (key, commitment) in derived_coms {
-        let o = format!("{} = 0x{}\n", key, hex::encode(commitment.as_bytes()));
-        file.write_all(o.as_bytes())?;
-    }
 
     Ok(())
 }

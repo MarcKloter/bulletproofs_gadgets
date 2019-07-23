@@ -175,7 +175,7 @@ mod tests {
         ]);
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(2048, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"MiMCHash");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
@@ -188,8 +188,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
@@ -223,8 +224,9 @@ mod tests {
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
         let mut verifier = Verifier::new(&mut verifier_transcript);
         let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
-        gadget.verify(&mut verifier, &witness_vars, &derived_commitments);
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }
