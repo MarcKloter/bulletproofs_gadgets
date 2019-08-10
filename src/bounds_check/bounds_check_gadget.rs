@@ -104,7 +104,7 @@ mod tests {
     use bulletproofs::r1cs::{Prover, Verifier};
 
     #[test]
-    fn test_bound_check_gadget() {
+    fn test_bounds_check_gadget() {
         let min: Vec<u8> = vec![10];
         let max: Vec<u8> = vec![100];
         let witness: Vec<u8> = vec![67];
