@@ -53,7 +53,7 @@ fn test_combine_gadgets() {
     witness_commitments.push(w3_commitment.clone());
 
     // ---------- BOUNDS ----------
-    let min: Vec<u8> = vec![10];
+    let min: Vec<u8> = vec![17];
     let max: Vec<u8> = vec![100];
 
     let p_bounds = BoundsCheck::new(&min, &max);
