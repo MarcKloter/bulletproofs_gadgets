@@ -1,6 +1,6 @@
 # bulletproofs_gadgets
 
-## Running Unit Tests
+## Running Integration and Unit Tests
 ```
 cargo test
 ```

@@ -40,3 +40,6 @@ path = "src/bin/prover.rs"
 [[bin]]
 name = "verifier"
 path = "src/bin/verifier.rs"
+
+[[test]]
+name = "combine_gadgets"
