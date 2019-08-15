@@ -1,0 +1,60 @@
+use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::{Pattern,Pattern::*};
+use bulletproofs_gadgets::lalrpop::ast::{*,Var::*};
+
+grammar;
+
+pub HashGadget: (Var, Var) = {
+    "HASH" <image:Witness> <preimage:Witness> => (Witness(image), Witness(preimage)),
+    "HASH" <image:Instance> <preimage:Witness> => (Instance(image), Witness(preimage))
+};
+
+pub BoundGadget: (Var, Var, Var) = {
+    "BOUND" <var:Witness> <min:Instance> <max:Instance> => (Witness(var), Instance(min), Instance(max))
+}
+
+pub MerkleGadget: (Var, Vec<Var>, Vec<Var>, Pattern) = {
+    "MERKLE" <root:Instance> <tree:Tree> => {
+        let (instance_vars, witness_vars, pattern) = tree;
+        (Instance(root), instance_vars, witness_vars, pattern)
+    }
+}
+
+Tree: (Vec<Var>, Vec<Var>, Pattern) = {
+    "("<t1:Tree> <t2:Tree>")" => {
+        let (i1, w1, p1) = t1; 
+        let (i2, w2, p2) = t2; 
+        ([&i1[..], &i2[..]].concat(), [&w1[..], &w2[..]].concat(), hash!(p1,p2))
+    },
+    "("<w:Witness> <t:Tree>")" => {
+        let (inst, wtns, p) = t; 
+        (inst, [&vec![Witness(w)][..], &wtns[..]].concat(), hash!(W,p))
+    },
+    "("<t:Tree> <w:Witness>")" => {
+        let (inst, wtns, p) = t;
+        (inst, [&wtns[..], &vec![Witness(w)][..]].concat(), hash!(p,W))
+    },
+    "("<w1:Witness> <w2:Witness>")" => (Vec::new(), vec![Witness(w1), Witness(w2)], hash!(W,W)),
+    "("<i:Instance> <t:Tree>")" => {
+        let (inst, wtns, p) = t;
+        ([&vec![Instance(i)][..], &inst[..]].concat(), wtns, hash!(I,p))
+    },
+    "("<t:Tree> <i:Instance>")" => {
+        let (inst, wtns, p) = t; 
+        ([&inst[..], &vec![Instance(i)][..]].concat(), wtns, hash!(p, I))
+    },
+    "("<i1:Instance> <i2:Instance>")" => (vec![Instance(i1), Instance(i2)], Vec::new(), hash!(I,I)),
+    "("<w:Witness> <i:Instance>")" => (vec![Instance(i)], vec![Witness(w)], hash!(W,I)),
+    "("<i:Instance> <w:Witness>")" => (vec![Instance(i)], vec![Witness(w)], hash!(I,W))
+}
+
+Commitment: String = {
+    <n:r"[C|D]{1}[\d]+-[\d]+"> => n.to_string()
+}
+
+Instance: String = {
+    <n:r"I[\d]+"> => n.to_string()
+}
+
+Witness: String = {
+    <n:r"W[\d]+"> => n.to_string()
+}

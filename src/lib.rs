@@ -10,6 +10,8 @@ extern crate pkcs7;
 extern crate rand;
 extern crate hex;
 extern crate regex;
+#[macro_use]
+extern crate lalrpop_util;
 
 //------------------------------------------------------------------------
 // Modules containing macros
@@ -27,6 +29,7 @@ pub mod bounds_check;
 pub mod mimc_hash;
 pub mod gadget;
 pub mod conversions;
+pub mod lalrpop;
 
 //------------------------------------------------------------------------
 // Private modules

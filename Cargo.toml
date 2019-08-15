@@ -2,6 +2,7 @@
 name = "bulletproofs_gadgets"
 version = "0.1.0"
 authors = ["Marc Kloter <marc.kloter@bluewin.ch>"]
+build = "build.rs"
 
 [dependencies]
 curve25519-dalek = { version = "1", features = ["serde"] }
@@ -20,12 +21,16 @@ pkcs7 = "1.0.0"
 hex = "0.3.2"
 regex = "1.1.9"
 libmath = "0.2.1"
+lalrpop-util = "0.17.1"
 
 [dependencies.bulletproofs]
 path = "../bulletproofs"
 #git = "https://github.com/MarcKloter/bulletproofs"
 #branch = "develop"
 features = ["yoloproofs", "avx2_backend"]
+
+[build-dependencies]
+lalrpop = "0.17.1"
 
 [dev-dependencies]
 hex = "0.3"

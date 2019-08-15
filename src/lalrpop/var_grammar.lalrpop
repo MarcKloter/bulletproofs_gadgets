@@ -1,0 +1,29 @@
+grammar;
+
+pub CommitmentVar: (String, Vec<u8>) = {
+    <n:Commitment> "=" <h:Hex> => (n, hex::decode(&h).unwrap())
+};
+
+pub InstanceVar: (String, Vec<u8>) = {
+    <n:Instance> "=" <h:Hex> => (n, hex::decode(&h).unwrap())
+};
+
+pub WitnessVar: (String, Vec<u8>) = {
+    <n:Witness> "=" <h:Hex> => (n, hex::decode(&h).unwrap())
+};
+
+Commitment: String = {
+    <n:r"[C|D]{1}[\d]+-[\d]+"> => n.to_string()
+}
+
+Instance: String = {
+    <n:r"I[\d]+"> => n.to_string()
+}
+
+Witness: String = {
+    <n:r"W[\d]+"> => n.to_string()
+}
+
+Hex: String = {
+    r"0[xX]" <h:r"[0-9a-fA-F]+"> => h.to_string()
+}
