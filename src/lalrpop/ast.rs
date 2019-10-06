@@ -3,7 +3,8 @@ use std::str::FromStr;
 pub enum GadgetOp {
     Hash,
     Bound,
-    Merkle
+    Merkle,
+    Equality
 }
 
 #[derive(Clone)]
@@ -19,7 +20,8 @@ impl GadgetOp {
         match self {
             GadgetOp::Hash => "HASH",
             GadgetOp::Bound => "BOUND",
-            GadgetOp::Merkle => "MERKLE"
+            GadgetOp::Merkle => "MERKLE",
+            GadgetOp::Equality => "EQUALS"
         }
     }
 }
@@ -32,6 +34,7 @@ impl FromStr for GadgetOp {
             "HASH" => Ok(GadgetOp::Hash),
             "BOUND" => Ok(GadgetOp::Bound),
             "MERKLE" => Ok(GadgetOp::Merkle),
+            "EQUALS" => Ok(GadgetOp::Equality),
             _ => Err(()),
         }
     }

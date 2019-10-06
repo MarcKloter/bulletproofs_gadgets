@@ -13,7 +13,8 @@ use bulletproofs_gadgets::gadget::Gadget;
 use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::MerkleTree256;
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
-use bulletproofs_gadgets::conversions::be_to_scalar;
+use bulletproofs_gadgets::equality::equality_gadget::Equality;
+use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
 use bulletproofs_gadgets::lalrpop::ast::*;
 use bulletproofs_gadgets::lalrpop::assignment_parser::*;
 
@@ -55,10 +56,10 @@ fn main() -> std::io::Result<()> {
     let mut assignments = Assignments::new();
 
     // ---------- PARSE .inst FILE ----------
-    assignments.parse_inst(filename.to_string());
+    assignments.parse_inst(filename.to_string()).expect("unable not read .inst file");;
 
     // ---------- PARSE .coms FILE ----------
-    assignments.parse_coms(filename.to_string(), &mut verifier);
+    assignments.parse_coms(filename.to_string(), &mut verifier).expect("unable not read .coms file");;
 
     // ---------- PARSE .gadgets FILE ----------
     let file = File::open(format!("{}{}", filename, GADGETS_EXT))?;
@@ -84,7 +85,7 @@ fn main() -> std::io::Result<()> {
                 let gadget = BoundsCheck::new(&min, &max);
                 gadget.verify(&mut verifier, &vec![var], &vec![a, b]);
             },
-            GadgetOp::Hash  => {
+            GadgetOp::Hash => {
                 let hash_parser = gadget_grammar::HashGadgetParser::new();
                 let (image, preimage) = hash_parser.parse(&line).unwrap();
 
@@ -124,6 +125,23 @@ fn main() -> std::io::Result<()> {
                 
                 let gadget = MerkleTree256::new(root.into(), instance_vars, pattern.clone());
                 gadget.verify(&mut verifier, &witness_vars, &Vec::new());
+            },
+            GadgetOp::Equality => {
+                let equality_parser = gadget_grammar::EqualityGadgetParser::new();
+                let (left, right) = equality_parser.parse(&line).unwrap();
+
+                let left = assignments.get_all_commitments(left);
+
+                let right: Vec<LinearCombination> = match right {
+                    Var::Witness(_) => assignments.get_all_commitments(right).into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|var| var.into()).collect(),
+                    _ => panic!("invalid state")
+                };
+
+                no_of_bp_gens += left.len();
+
+                let gadget = Equality::new(right);
+                gadget.verify(&mut verifier, &left, &Vec::new());
             }
         }
     }

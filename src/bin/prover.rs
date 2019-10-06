@@ -13,7 +13,8 @@ use bulletproofs_gadgets::gadget::Gadget;
 use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::MerkleTree256;
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
-use bulletproofs_gadgets::conversions::be_to_scalar;
+use bulletproofs_gadgets::equality::equality_gadget::Equality;
+use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
 use bulletproofs_gadgets::lalrpop::ast::*;
 use bulletproofs_gadgets::lalrpop::assignment_parser::*;
 
@@ -78,7 +79,7 @@ fn main() -> std::io::Result<()> {
                 let coms = gadget.prove(&mut prover, &var.0, &var.2);
                 assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");
             },
-            GadgetOp::Hash  => {
+            GadgetOp::Hash => {
                 let hash_parser = gadget_grammar::HashGadgetParser::new();
                 let (image, preimage) = hash_parser.parse(&line).unwrap();
 
@@ -119,6 +120,24 @@ fn main() -> std::io::Result<()> {
                 
                 let gadget = MerkleTree256::new(root, instance_vars, pattern.clone());
                 let _ = gadget.prove(&mut prover, &witness_scalars, &witness_vars);
+            },
+            GadgetOp::Equality => {
+                let equality_parser = gadget_grammar::EqualityGadgetParser::new();
+                let (left, right) = equality_parser.parse(&line).unwrap();
+
+                let left = assignments.get_witness(left, None);
+
+                let right: Vec<LinearCombination> = match right {
+                    Var::Witness(_) => assignments.get_witness(right, None).2.into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|var| var.into()).collect(),
+                    _ => panic!("invalid state")
+                };
+
+                no_of_bp_gens += left.1.len();
+
+                let gadget = Equality::new(right);
+                let coms = gadget.prove(&mut prover, &left.0, &left.2);
+                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");;
             }
         }
     }
