@@ -3,29 +3,24 @@ extern crate merlin;
 extern crate bulletproofs;
 #[macro_use] extern crate bulletproofs_gadgets;
 #[macro_use] extern crate lalrpop_util;
-extern crate regex;
 extern crate math;
 
 use bulletproofs::r1cs::{Prover, Variable, LinearCombination};
 use bulletproofs::{BulletproofGens, PedersenGens};
-use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
-use bulletproofs_gadgets::commitments::commit;
 use bulletproofs_gadgets::gadget::Gadget;
-use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::{MerkleTree256, Pattern, Pattern::*};
+use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::MerkleTree256;
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
 use bulletproofs_gadgets::conversions::be_to_scalar;
 use bulletproofs_gadgets::lalrpop::ast::*;
 use bulletproofs_gadgets::lalrpop::assignment_parser::*;
 
-use std::collections::HashMap;
 use std::io::prelude::*;
 use std::io::{BufReader};
 use std::fs::File;
 use std::env;
-use regex::Regex;
 use math::round;
 
 // lalrpop parsers
@@ -56,13 +51,12 @@ fn main() -> std::io::Result<()> {
     let mut coms_file = File::create(format!("{}{}", filename, COMMITMENTS_EXT))?;
     
     // ---------- PARSE .inst FILE ----------
-    assignments.parse_inst(filename.to_string());
+    assignments.parse_inst(filename.to_string()).expect("unable not read .inst file");
     
     // ---------- PARSE .wtns FILE, WRITE .coms FILE ----------
-    assignments.parse_wtns(filename.to_string(), &mut prover, &mut coms_file);
+    assignments.parse_wtns(filename.to_string(), &mut prover, &mut coms_file).expect("could not read .wtns file");
 
     // ---------- GADGETS ----------
-    let mut derived_coms: HashMap<String, CompressedRistretto> = HashMap::new();
     let file = File::open(format!("{}{}", filename, GADGETS_EXT))?;
     for (index, line) in BufReader::new(file).lines().enumerate() {
         let line = line.unwrap();
@@ -82,7 +76,7 @@ fn main() -> std::io::Result<()> {
 
                 let gadget = BoundsCheck::new(&min, &max);
                 let coms = gadget.prove(&mut prover, &var.0, &var.2);
-                assignments.parse_derived_wtns(coms, index, &mut coms_file);
+                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::Hash  => {
                 let hash_parser = gadget_grammar::HashGadgetParser::new();
@@ -100,7 +94,7 @@ fn main() -> std::io::Result<()> {
 
                 let gadget = MimcHash256::new(image);
                 let coms = gadget.prove(&mut prover, &preimage.0, &preimage.2);
-                assignments.parse_derived_wtns(coms, index, &mut coms_file);
+                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");;
             },
             GadgetOp::Merkle => {
                 let merkle_parser = gadget_grammar::MerkleGadgetParser::new();
