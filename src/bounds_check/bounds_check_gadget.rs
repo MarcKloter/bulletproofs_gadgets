@@ -51,8 +51,8 @@ impl BoundsCheck {
     /// * `min` - u64 as byte vector in big endian order 
     /// * `max` - u64 as byte vector in big endian order 
     pub fn new(min: &Vec<u8>, max: &Vec<u8>) -> BoundsCheck {
-        // number of bits to represent max = floor(log2(max) + 1)
-        let n: u8 = ((be_to_u64(max) as f64).log2() + 1.0).floor() as u8;
+        // number of bits to represent max
+        let n: u8 = (max.len() * 8) as u8;
 
         BoundsCheck {
             min: be_to_scalar(min),
