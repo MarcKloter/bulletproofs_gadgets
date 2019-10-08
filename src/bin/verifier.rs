@@ -80,7 +80,7 @@ fn main() -> std::io::Result<()> {
                 let a = assignments.get_derived(index, 0);
                 let b = assignments.get_derived(index, 1);
 
-                no_of_bp_gens += 16;
+                no_of_bp_gens += 256;
 
                 let gadget = BoundsCheck::new(&min, &max);
                 gadget.verify(&mut verifier, &vec![var], &vec![a, b]);

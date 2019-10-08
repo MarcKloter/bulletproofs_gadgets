@@ -73,7 +73,7 @@ fn main() -> std::io::Result<()> {
                 let min: Vec<u8> = assignments.get_instance(min, Some(&assert_32));
                 let max: Vec<u8> = assignments.get_instance(max, Some(&assert_32));
 
-                no_of_bp_gens += 16;
+                no_of_bp_gens += 256;
 
                 let gadget = BoundsCheck::new(&min, &max);
                 let coms = gadget.prove(&mut prover, &var.0, &var.2);
