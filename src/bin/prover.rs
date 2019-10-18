@@ -14,6 +14,7 @@ use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::MerkleTree256;
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
 use bulletproofs_gadgets::equality::equality_gadget::Equality;
+use bulletproofs_gadgets::inequality::inequality_gadget::Inequality;
 use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
 use bulletproofs_gadgets::lalrpop::ast::*;
 use bulletproofs_gadgets::lalrpop::assignment_parser::*;
@@ -95,7 +96,7 @@ fn main() -> std::io::Result<()> {
 
                 let gadget = MimcHash256::new(image);
                 let coms = gadget.prove(&mut prover, &preimage.0, &preimage.2);
-                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");;
+                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::Merkle => {
                 let merkle_parser = gadget_grammar::MerkleGadgetParser::new();
@@ -137,7 +138,31 @@ fn main() -> std::io::Result<()> {
 
                 let gadget = Equality::new(right);
                 let coms = gadget.prove(&mut prover, &left.0, &left.2);
-                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");;
+                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");
+            },
+            GadgetOp::Inequality => {
+                let inequality_parser = gadget_grammar::InequalityGadgetParser::new();
+                let (left, right) = inequality_parser.parse(&line).unwrap();
+
+                let left = assignments.get_witness(left, None);
+
+                let right_lc: Vec<LinearCombination> = match right.clone() {
+                    Var::Witness(_) => assignments.get_witness(right.clone(), None).2.into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right.clone(), None)).into_iter().map(|var| var.into()).collect(),
+                    _ => panic!("invalid state")
+                };
+
+                let right_scalars: Vec<Scalar> = match right {
+                    Var::Witness(_) => assignments.get_witness(right, None).0,
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)),
+                    _ => panic!("invalid state")
+                };
+
+                no_of_bp_gens += left.1.len();
+
+                let gadget = Inequality::new(right_lc, Some(right_scalars));
+                let coms = gadget.prove(&mut prover, &left.0, &left.2);
+                assignments.parse_derived_wtns(coms, index, &mut coms_file).expect("unable to write .coms file");
             }
         }
     }

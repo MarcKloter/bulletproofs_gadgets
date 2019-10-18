@@ -28,6 +28,7 @@ pub mod commitments;
 pub mod bounds_check;
 pub mod mimc_hash;
 pub mod equality;
+pub mod inequality;
 pub mod gadget;
 pub mod conversions;
 pub mod lalrpop;

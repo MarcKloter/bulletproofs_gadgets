@@ -4,7 +4,8 @@ pub enum GadgetOp {
     Hash,
     Bound,
     Merkle,
-    Equality
+    Equality,
+    Inequality
 }
 
 #[derive(Clone)]
@@ -21,7 +22,8 @@ impl GadgetOp {
             GadgetOp::Hash => "HASH",
             GadgetOp::Bound => "BOUND",
             GadgetOp::Merkle => "MERKLE",
-            GadgetOp::Equality => "EQUALS"
+            GadgetOp::Equality => "EQUALS",
+            GadgetOp::Inequality => "UNEQUAL"
         }
     }
 }
@@ -35,6 +37,7 @@ impl FromStr for GadgetOp {
             "BOUND" => Ok(GadgetOp::Bound),
             "MERKLE" => Ok(GadgetOp::Merkle),
             "EQUALS" => Ok(GadgetOp::Equality),
+            "UNEQUAL" => Ok(GadgetOp::Inequality),
             _ => Err(()),
         }
     }

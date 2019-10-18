@@ -17,6 +17,11 @@ pub EqualityGadget: (Var, Var) = {
     "EQUALS" <left:Witness> <right:Witness> => (Witness(left), Witness(right))
 }
 
+pub InequalityGadget: (Var, Var) = {
+    "UNEQUAL" <left:Witness> <right:Instance> => (Witness(left), Instance(right)),
+    "UNEQUAL" <left:Witness> <right:Witness> => (Witness(left), Witness(right))
+}
+
 pub MerkleGadget: (Var, Vec<Var>, Vec<Var>, Pattern) = {
     "MERKLE" <root:Instance> <tree:Tree> => {
         let (instance_vars, witness_vars, pattern) = tree;
