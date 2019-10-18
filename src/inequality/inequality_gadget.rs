@@ -18,11 +18,11 @@ impl Gadget for Inequality {
 
         let mut sum: Scalar = Scalar::zero();
 
-        for i in 0..right_hand.len() {
+        for i in 0..left_hand.len() {
             let delta: Scalar = left_hand.get(i).unwrap() - right_hand.get(i).unwrap();
             let delta_inv: Scalar = delta.invert();
             derived_witnesses.push(delta_inv);
-            sum = sum + delta * delta_inv;
+            sum = sum + (delta * delta_inv);
         }
 
         derived_witnesses.push(sum.invert());
@@ -40,7 +40,7 @@ impl Gadget for Inequality {
 
         // sum up all deltas, if left = right then this would be 0 (as all deltas would be 0)
         // showing that there is a multiplicative inverse to this sum proves, that there is at least one delta != 0 --> left != right
-        let mut sum: LinearCombination = LinearCombination::from(Scalar::zero());
+        let mut sum: LinearCombination = Scalar::zero().into();
 
         for i in 0..left_hand.len() {
             let right_lc : LinearCombination = self.right_hand.get(i).unwrap().clone();
@@ -59,12 +59,13 @@ impl Gadget for Inequality {
 
         let sum_inv: LinearCombination = (*derived_witnesses.get(derived_witnesses.len() - 1).unwrap()).1.into();
 
-        let (_, _, sum_times_sum_inv) = cs.multiply(sum, sum_inv);
+        let (_, _, expected_one) = cs.multiply(sum, sum_inv);
+        let expected_one_lc: LinearCombination = expected_one.into();
 
-        let one: LinearCombination = LinearCombination::from(Scalar::one());
+        let one_lc: LinearCombination = Scalar::one().into();
 
         // show that sum * sum_inv = 1
-        cs.constrain(sum_times_sum_inv - one);
+        cs.constrain(expected_one_lc - one_lc);
     }
 }
 
