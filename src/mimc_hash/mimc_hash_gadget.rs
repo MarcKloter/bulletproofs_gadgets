@@ -229,4 +229,42 @@ mod tests {
         gadget.verify(&mut verifier, &witness_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
+
+    #[test]
+    fn test_mimc_hash_gadget_3() {
+        let preimage: Vec<u8> = vec![
+            0x54, 0x68, 0x65, 0x20, 0x71, 0x75, 0x69, 0x4a, 
+            0x76, 0x07, 0x7d, 0x4a, 0x40, 0xbd, 0x91, 0x55, 
+            0x1b, 0x3a, 0x03, 0xb1, 0xad, 0x8a, 0xdb, 0x2b, 
+            0x66, 0x6f, 0x78, 0x20, 0x6a, 0x75, 0x6d, 0x70, 
+            0x66, 0x6f, 0x78, 0x20, 0x6a, 0x75, 0x6d, 0x70, 
+            0x73, 0x20, 0x6f, 0x76, 0x65
+        ];
+
+        let image: Scalar = be_to_scalar(&vec![
+            0x0f, 0xcb, 0x21, 0xfb, 0xf2, 0x3b, 0x96, 0x8d, 
+            0xee, 0x8f, 0x6b, 0x3a, 0x51, 0x1e, 0x93, 0xe8, 
+            0xc5, 0xc0, 0xeb, 0x2f, 0x71, 0xaa, 0x06, 0x01, 
+            0x11, 0x1f, 0x91, 0x1c, 0x9e, 0x42, 0xcf, 0x06
+        ]);
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(2048, 1);
+
+        let mut prover_transcript = Transcript::new(b"MiMCHash");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+
+        let gadget = MimcHash256::new(image.into());
+        let (scalars, witness_commitments, variables) = commit(&mut prover, &preimage);
+        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let proof = prover.prove(&bp_gens).unwrap();
+
+        let mut verifier_transcript = Transcript::new(b"MiMCHash");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
+        
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
+    }
 }
