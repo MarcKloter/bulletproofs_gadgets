@@ -21,7 +21,6 @@ impl Gadget for Inequality {
         for i in 0..right_hand.len() {
             let delta: Scalar = left_hand.get(i).unwrap() - right_hand.get(i).unwrap();
             let delta_inv: Scalar = delta.invert();
-            derived_witnesses.push(delta);
             derived_witnesses.push(delta_inv);
             sum = sum + delta * delta_inv;
         }
@@ -46,13 +45,9 @@ impl Gadget for Inequality {
         for i in 0..left_hand.len() {
             let right_lc : LinearCombination = self.right_hand.get(i).unwrap().clone();
             let left_lc : LinearCombination = (*left_hand.get(i).unwrap()).into();
-            let (_, delta) = derived_witnesses.get(i*2).unwrap();
-            let delta_lc: LinearCombination = (*delta).into();
-            let (_, delta_inv) = derived_witnesses.get(i*2+1).unwrap();
+            let delta_lc: LinearCombination = left_lc.clone() - right_lc.clone();
+            let (_, delta_inv) = derived_witnesses.get(i).unwrap();
             let delta_inv_lc = (*delta_inv).into();
-
-            // show that delta is in fact = left - right --> left - (right + delta) = 0
-            cs.constrain(left_lc - (right_lc + delta_lc.clone()));
 
             // multiply delta * delta_inv, if delta is non-zero this will be 1, otherwise 0
             let (_, _, delta_times_delta_inv) = cs.multiply(delta_lc, delta_inv_lc);
