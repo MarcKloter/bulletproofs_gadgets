@@ -135,7 +135,7 @@ fn main() -> std::io::Result<()> {
 
                 let right: Vec<LinearCombination> = match right {
                     Var::Witness(_) => assignments.get_all_commitments(right).into_iter().map(|var| var.into()).collect(),
-                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|scalar| scalar.into()).collect(),
                     _ => panic!("invalid state")
                 };
 
@@ -150,9 +150,9 @@ fn main() -> std::io::Result<()> {
 
                 let left = assignments.get_all_commitments(left);
 
-                let right: Vec<LinearCombination> = match right {
+                let right_lc: Vec<LinearCombination> = match right {
                     Var::Witness(_) => assignments.get_all_commitments(right).into_iter().map(|var| var.into()).collect(),
-                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|scalar| scalar.into()).collect(),
                     _ => panic!("invalid state")
                 };
 
@@ -165,10 +165,10 @@ fn main() -> std::io::Result<()> {
 
                 // get sum_inv value
                 derived_witnesses.push(assignments.get_derived(index, left.len()));
+                
+                no_of_bp_gens += left.len()*2;
 
-                no_of_bp_gens += left.len();
-
-                let gadget = Inequality::new(right, None);
+                let gadget = Inequality::new(right_lc, None);
                 gadget.verify(&mut verifier, &left, &derived_witnesses);
             }
         }

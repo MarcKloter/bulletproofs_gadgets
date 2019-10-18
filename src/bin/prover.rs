@@ -130,7 +130,7 @@ fn main() -> std::io::Result<()> {
 
                 let right: Vec<LinearCombination> = match right {
                     Var::Witness(_) => assignments.get_witness(right, None).2.into_iter().map(|var| var.into()).collect(),
-                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|scalar| scalar.into()).collect(),
                     _ => panic!("invalid state")
                 };
 
@@ -146,19 +146,21 @@ fn main() -> std::io::Result<()> {
 
                 let left = assignments.get_witness(left, None);
 
-                let right_lc: Vec<LinearCombination> = match right.clone() {
-                    Var::Witness(_) => assignments.get_witness(right.clone(), None).2.into_iter().map(|var| var.into()).collect(),
-                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right.clone(), None)).into_iter().map(|var| var.into()).collect(),
+                let (right_scalars, right_lc) = match right {
+                    Var::Witness(_) => {
+                        let scalars: Vec<Scalar> = assignments.get_witness(right, None).0;
+                        let lcs: Vec<LinearCombination> = scalars.clone().into_iter().map(|scalar| scalar.into()).collect();
+                        (scalars, lcs)
+                    },
+                    Var::Instance(_) => {
+                        let scalars: Vec<Scalar> = be_to_scalars(&assignments.get_instance(right, None));
+                        let lcs: Vec<LinearCombination> = scalars.clone().into_iter().map(|scalar| scalar.into()).collect();
+                        (scalars, lcs)
+                    },
                     _ => panic!("invalid state")
                 };
 
-                let right_scalars: Vec<Scalar> = match right {
-                    Var::Witness(_) => assignments.get_witness(right, None).0,
-                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)),
-                    _ => panic!("invalid state")
-                };
-
-                no_of_bp_gens += left.1.len();
+                no_of_bp_gens += left.1.len()*2;
 
                 let gadget = Inequality::new(right_lc, Some(right_scalars));
                 let coms = gadget.prove(&mut prover, &left.0, &left.2);
