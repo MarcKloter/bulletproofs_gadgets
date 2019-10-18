@@ -8,7 +8,7 @@ pub struct Equality {
 }
 
 impl Gadget for Equality {
-    fn preprocess(&self, witnesses: &Vec<Scalar>) -> Vec<Scalar> {
+    fn preprocess(&self, _: &Vec<Scalar>) -> Vec<Scalar> {
         Vec::new()
     }
 
