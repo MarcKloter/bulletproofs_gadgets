@@ -1,7 +1,7 @@
 use bulletproofs::r1cs::{ConstraintSystem, Variable, LinearCombination};
 use curve25519_dalek::scalar::Scalar;
 use gadget::Gadget;
-use conversions::{be_to_scalar, be_to_u64};
+use conversions::be_to_scalar;
 
 pub struct BoundsCheck {
     min: Scalar,
