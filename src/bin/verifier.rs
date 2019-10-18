@@ -156,10 +156,20 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
+                let mut derived_witnesses: Vec<Variable> = Vec::new();
+
+                // get delta_inv values
+                for i in 0..left.len() {
+                    derived_witnesses.push(assignments.get_derived(index, i));
+                }
+
+                // get sum_inv value
+                derived_witnesses.push(assignments.get_derived(index, left.len()));
+
                 no_of_bp_gens += left.len();
 
                 let gadget = Inequality::new(right, None);
-                gadget.verify(&mut verifier, &left, &Vec::new());
+                gadget.verify(&mut verifier, &left, &derived_witnesses);
             }
         }
     }
