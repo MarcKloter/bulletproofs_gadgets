@@ -60,7 +60,7 @@ impl Gadget for MerkleTree256 {
     }
 }
 
-impl MerkleTree256 {    
+impl MerkleTree256 {
     pub fn new(root: LinearCombination, instance_vars: Vec<Vec<u8>>, pattern: Pattern) -> MerkleTree256 {
         MerkleTree256 {
             root: root,
@@ -501,7 +501,7 @@ mod tests {
         let pattern: Pattern = hash_512;
 
         let mut witnesses: Vec<Vec<u8>> = Vec::new();
-        for x in 0..32 {
+        for _ in 0..32 {
             witnesses.push(W1.to_vec());
             witnesses.push(W1.to_vec());
             witnesses.push(W1.to_vec());
