@@ -148,9 +148,9 @@ fn main() -> std::io::Result<()> {
 
                 let (right_scalars, right_lc) = match right {
                     Var::Witness(_) => {
-                        let scalars: Vec<Scalar> = assignments.get_witness(right, None).0;
-                        let lcs: Vec<LinearCombination> = scalars.clone().into_iter().map(|scalar| scalar.into()).collect();
-                        (scalars, lcs)
+                        let witnesses = assignments.get_witness(right, None);
+                        let lcs: Vec<LinearCombination> = witnesses.2.into_iter().map(|var| var.into()).collect();
+                        (witnesses.0, lcs)
                     },
                     Var::Instance(_) => {
                         let scalars: Vec<Scalar> = be_to_scalars(&assignments.get_instance(right, None));
@@ -160,7 +160,7 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                no_of_bp_gens += left.1.len()*2;
+                no_of_bp_gens += left.1.len()*4;
 
                 let gadget = Inequality::new(right_lc, Some(right_scalars));
                 let coms = gadget.prove(&mut prover, &left.0, &left.2);

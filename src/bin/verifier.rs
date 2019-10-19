@@ -148,7 +148,7 @@ fn main() -> std::io::Result<()> {
                 let inequality_parser = gadget_grammar::InequalityGadgetParser::new();
                 let (left, right) = inequality_parser.parse(&line).unwrap();
 
-                let left = assignments.get_all_commitments(left);
+                let left: Vec<Variable> = assignments.get_all_commitments(left);
 
                 let right_lc: Vec<LinearCombination> = match right {
                     Var::Witness(_) => assignments.get_all_commitments(right).into_iter().map(|var| var.into()).collect(),
@@ -158,15 +158,15 @@ fn main() -> std::io::Result<()> {
 
                 let mut derived_witnesses: Vec<Variable> = Vec::new();
 
-                // get delta_inv values
-                for i in 0..left.len() {
+                // get delta and delta_inv values
+                for i in 0..(left.len() * 2) {
                     derived_witnesses.push(assignments.get_derived(index, i));
                 }
 
                 // get sum_inv value
-                derived_witnesses.push(assignments.get_derived(index, left.len()));
-                
-                no_of_bp_gens += left.len()*2;
+                derived_witnesses.push(assignments.get_derived(index, left.len() * 2));
+
+                no_of_bp_gens += left.len()*4;
 
                 let gadget = Inequality::new(right_lc, None);
                 gadget.verify(&mut verifier, &left, &derived_witnesses);
@@ -176,7 +176,11 @@ fn main() -> std::io::Result<()> {
 
     // ---------- VERIFY PROOF ----------
     let bp_gens = BulletproofGens::new(round_pow2(no_of_bp_gens), 1);
-    assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
-
+    let result = verifier.verify(&proof, &pc_gens, &bp_gens);
+    match result {
+        Err(_) => println!("FALSE"),
+        _ => println!("TRUE")
+    }
+ 
     Ok(())
 }
