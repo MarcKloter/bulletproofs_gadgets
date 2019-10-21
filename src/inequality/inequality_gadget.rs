@@ -12,7 +12,6 @@ impl Gadget for Inequality {
     fn preprocess(&self, left_hand: &Vec<Scalar>) -> Vec<Scalar> {
         assert!(self.right_hand_assignment.is_some(), "missing right hand assignment");
         let right_hand: &Vec<Scalar> = self.right_hand_assignment.as_ref().unwrap();
-        assert!(right_hand.len() == left_hand.len(), "left and right hand side are not the same length");
 
         let mut derived_witnesses: Vec<Scalar> = Vec::new();
 
@@ -20,7 +19,7 @@ impl Gadget for Inequality {
 
         for i in 0..left_hand.len() {
             let left: Scalar = *left_hand.get(i).unwrap();
-            let right: Scalar = *right_hand.get(i).unwrap();
+            let right: Scalar = *right_hand.get(i).unwrap_or(&Scalar::zero());
             // delta has to be max(left, right) - min(left, right)
             let delta: Scalar;
             if Inequality::compare(left, right) {
@@ -51,7 +50,9 @@ impl Gadget for Inequality {
         left_hand: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) {
-        assert!(self.right_hand.len() == left_hand.len(), "left and right hand side are not the same length");
+        if self.right_hand.len() != left_hand.len() {
+            return cs.constrain(Scalar::one().into());
+        }
 
         // sum up all deltas, if left = right then this would be 0 (as all deltas would be 0)
         // showing that there is a multiplicative inverse to this sum proves, that there is at least one delta != 0 --> left != right
@@ -335,6 +336,96 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &value);
+        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let proof = prover.prove(&bp_gens).unwrap();
+
+        let mut verifier_transcript = Transcript::new(b"Inequality");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
+        
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+    }
+
+    #[test]
+    fn test_inequality_gadget_6() {
+        let right: Vec<u8> = vec![
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
+            0x76, 0x0c, 0xf9, 0x55, 0xa1, 0x5f, 0xcc, 0x79, 
+            0x3e, 0x8a, 0x52, 0xb4, 0x2a, 0x56, 0xab, 0x03, 
+            0xaf, 0xdd, 0xec, 0x8b, 0xeb, 0x66, 0x87
+        ];
+
+        let right_assignment: Vec<Scalar> = be_to_scalars(&right);
+
+        let right_lc: Vec<LinearCombination> = right_assignment
+            .iter()
+            .map(|scalar| (*scalar).into())
+            .collect();
+            
+        let left_assignment: Vec<u8> = vec![
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
+            0x3e, 0x8a, 0x52, 0xb4, 0x2a, 0x56, 0xab, 0x03, 
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
+            0x3e, 0x8a, 0x52, 0xb4, 0x2a, 0x56, 0xab, 0x03, 
+            0x76, 0x0c, 0xf9, 0x55, 0xa1, 0x5f, 0xcc, 0x79,
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e 
+        ];
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(4, 1);
+
+        let mut prover_transcript = Transcript::new(b"Inequality");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+
+        let gadget = Inequality::new(right_lc, Some(right_assignment));
+        let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
+        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let proof = prover.prove(&bp_gens).unwrap();
+
+        let mut verifier_transcript = Transcript::new(b"Inequality");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
+        
+        gadget.verify(&mut verifier, &witness_vars, &derived_vars);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+    }
+
+    #[test]
+    fn test_inequality_gadget_7() {
+        let right: Vec<u8> = vec![
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
+            0x3e, 0x8a, 0x52, 0xb4, 0x2a, 0x56, 0xab, 0x03, 
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
+            0x3e, 0x8a, 0x52, 0xb4, 0x2a, 0x56, 0xab, 0x03, 
+            0x76, 0x0c, 0xf9, 0x55, 0xa1, 0x5f, 0xcc, 0x79,
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e 
+        ];
+
+        let right_assignment: Vec<Scalar> = be_to_scalars(&right);
+
+        let right_lc: Vec<LinearCombination> = right_assignment
+            .iter()
+            .map(|scalar| (*scalar).into())
+            .collect();
+            
+        let left_assignment: Vec<u8> = vec![
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
+            0x76, 0x0c, 0xf9, 0x55, 0xa1, 0x5f, 0xcc, 0x79, 
+            0x3e, 0x8a, 0x52, 0xb4, 0x2a, 0x56, 0xab, 0x03, 
+            0xaf, 0xdd, 0xec, 0x8b, 0xeb, 0x66, 0x87
+        ];
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(4, 1);
+
+        let mut prover_transcript = Transcript::new(b"Inequality");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+
+        let gadget = Inequality::new(right_lc, Some(right_assignment));
+        let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
         let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
         let proof = prover.prove(&bp_gens).unwrap();
 
