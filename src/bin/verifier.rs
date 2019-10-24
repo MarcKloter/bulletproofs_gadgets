@@ -96,7 +96,7 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                let mut preimage: Vec<Variable> = assignments.get_all_commitments(preimage);
+                let preimage: Vec<Variable> = assignments.get_all_commitments(preimage);
 
                 let padded_block = assignments.get_derived(index, 0);
                 let padding = assignments.get_derived(index, 1);
