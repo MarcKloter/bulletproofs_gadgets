@@ -169,6 +169,9 @@ fn main() -> std::io::Result<()> {
         }
     }
     
+    // output number of constraints
+    println!("{}", prover.num_constraints());
+
     // ---------- CREATE PROOF ----------
     let bp_gens = BulletproofGens::new(round_pow2(no_of_bp_gens), 1);
     let proof = prover.prove(&bp_gens).unwrap();

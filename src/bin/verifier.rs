@@ -178,8 +178,8 @@ fn main() -> std::io::Result<()> {
     let bp_gens = BulletproofGens::new(round_pow2(no_of_bp_gens), 1);
     let result = verifier.verify(&proof, &pc_gens, &bp_gens);
     match result {
-        Err(_) => println!("FALSE"),
-        _ => println!("TRUE")
+        Err(_) => println!("false"),
+        _ => println!("true")
     }
  
     Ok(())
