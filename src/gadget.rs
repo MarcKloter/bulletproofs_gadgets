@@ -10,7 +10,7 @@ pub trait Gadget {
     /// Build the constraint system
     fn assemble(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         witnesses: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     );

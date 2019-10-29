@@ -14,7 +14,7 @@ impl Gadget for Equality {
 
     fn assemble(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         left_hand: &Vec<Variable>, 
         _: &Vec<(Option<Scalar>, Variable)>
     ) {

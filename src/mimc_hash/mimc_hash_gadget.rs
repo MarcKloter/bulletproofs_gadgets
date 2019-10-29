@@ -38,7 +38,7 @@ impl Gadget for MimcHash256 {
 
     fn assemble(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         witnesses: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) {
@@ -80,7 +80,7 @@ impl MimcHash256 {
 
     fn pad(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         witnesses: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) -> Vec<Variable> {
@@ -107,7 +107,7 @@ impl MimcHash256 {
 
     pub fn mimc_sponge(
         &self,
-        cs: &mut ConstraintSystem,
+        cs: &mut dyn ConstraintSystem,
         preimage: &Vec<LinearCombination>
     ) -> LinearCombination {
         let key_zero: LinearCombination = Scalar::zero().into();
@@ -123,7 +123,7 @@ impl MimcHash256 {
 
     fn mimc_encryption(
         &self,
-        cs: &mut ConstraintSystem,
+        cs: &mut dyn ConstraintSystem,
         p: LinearCombination,
         k: LinearCombination
     ) -> LinearCombination {

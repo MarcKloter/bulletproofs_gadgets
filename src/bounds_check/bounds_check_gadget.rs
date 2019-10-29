@@ -21,7 +21,7 @@ impl Gadget for BoundsCheck {
 
     fn assemble(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         _: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) {
@@ -64,7 +64,7 @@ impl BoundsCheck {
     /// Enforces that the quantity of x is in the range [0, 2^n).
     fn range_proof(
         &self,
-        cs: &mut ConstraintSystem,
+        cs: &mut dyn ConstraintSystem,
         mut x: LinearCombination,
         x_assignment: Option<Scalar>
     ) {

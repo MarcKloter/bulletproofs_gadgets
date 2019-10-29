@@ -6,17 +6,8 @@ build = "build.rs"
 
 [dependencies]
 curve25519-dalek = { version = "1", features = ["serde"] }
-subtle = "2"
-sha3 = "0.8"
-digest = "0.8"
 rand = "0.6"
-byteorder = "1"
-serde = "1"
-serde_derive = "1"
-failure = "0.1"
-merlin = "1"
-clear_on_drop = "0.2"
-
+merlin = "1.1.0"
 pkcs7 = "1.0.0"
 hex = "0.3.2"
 regex = "1.1.9"
@@ -24,19 +15,12 @@ libmath = "0.2.1"
 lalrpop-util = "0.17.1"
 
 [dependencies.bulletproofs]
-path = "../bulletproofs"
-#git = "https://github.com/MarcKloter/bulletproofs"
-#branch = "develop"
+git = "https://github.com/MarcKloter/bulletproofs"
+branch = "develop"
 features = ["yoloproofs", "avx2_backend"]
 
 [build-dependencies]
 lalrpop = "0.17.1"
-
-[dev-dependencies]
-hex = "0.3"
-criterion = "0.2"
-bincode = "1"
-rand_chacha = "0.1"
 
 [[bin]]
 name = "prover"

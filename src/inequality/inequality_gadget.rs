@@ -46,7 +46,7 @@ impl Gadget for Inequality {
 
     fn assemble(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         left_hand: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) {

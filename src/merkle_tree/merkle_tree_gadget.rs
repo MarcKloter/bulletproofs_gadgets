@@ -43,7 +43,7 @@ impl Gadget for MerkleTree256 {
 
     fn assemble(
         &self, 
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         witnesses: &Vec<Variable>, 
         _: &Vec<(Option<Scalar>, Variable)>
     ) {
@@ -72,7 +72,7 @@ impl MerkleTree256 {
 
     fn parse(
         &self,
-        cs: &mut ConstraintSystem, 
+        cs: &mut dyn ConstraintSystem, 
         w_vars: &mut Vec<LinearCombination>,
         i_vars: &mut Vec<LinearCombination>,
         pattern: Pattern

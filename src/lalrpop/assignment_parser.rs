@@ -83,7 +83,7 @@ impl Assignments {
         *self.commitments.get(&key).expect(&format!("missing commitment {}", &key))
     }
 
-    pub fn get_instance(&self, var: Var, assertion: Option<&Fn(String, &Vec<u8>)>) -> Vec<u8> {
+    pub fn get_instance(&self, var: Var, assertion: Option<&dyn Fn(String, &Vec<u8>)>) -> Vec<u8> {
         match var {
             Var::Instance(name) => {
                 let error = &format!("missing instance var {}", &name);
@@ -101,7 +101,7 @@ impl Assignments {
     pub fn get_witness(
         &self, 
         var: Var, 
-        assertion: Option<&Fn(String, &(Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>))>
+        assertion: Option<&dyn Fn(String, &(Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>))>
     ) -> (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>) {
         match var {
             Var::Witness(name) => {
