@@ -103,6 +103,7 @@ fn pad(preimage: &mut Vec<Scalar>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use conversions::{scalar_to_be};
 
     #[test]
     fn test_mimc_hash_256b_1() {
