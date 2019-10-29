@@ -1,4 +1,5 @@
 # bulletproofs_gadgets
+[![Build Status](https://travis-ci.org/MarcKloter/bulletproofs_gadgets.svg?branch=master)](https://travis-ci.org/MarcKloter/bulletproofs_gadgets)
 This repository contains r1cs gadgets to use with [dalek-cryptographys implementation of Bulletproofs](https://github.com/dalek-cryptography/bulletproofs) along with the definition of a mini-language to combine these gadgets into statements and a parser for execution. 
 
 ## Running an Example Proof
