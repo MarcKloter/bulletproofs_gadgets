@@ -31,6 +31,7 @@ pub mod equality;
 pub mod inequality;
 pub mod gadget;
 pub mod conversions;
+pub mod utils;
 pub mod lalrpop;
 
 //------------------------------------------------------------------------
