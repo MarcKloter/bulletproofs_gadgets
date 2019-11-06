@@ -29,6 +29,7 @@ pub mod bounds_check;
 pub mod mimc_hash;
 pub mod equality;
 pub mod inequality;
+pub mod less_than;
 pub mod gadget;
 pub mod conversions;
 pub mod utils;
