@@ -14,11 +14,13 @@ pub BoundGadget: (Var, Var, Var) = {
 
 pub EqualityGadget: (Var, Var) = {
     "EQUALS" <left:Witness> <right:Instance> => (Witness(left), Instance(right)),
+    "EQUALS" <left:Instance> <right:Witness> => (Witness(right), Instance(left)),
     "EQUALS" <left:Witness> <right:Witness> => (Witness(left), Witness(right))
 }
 
 pub InequalityGadget: (Var, Var) = {
     "UNEQUAL" <left:Witness> <right:Instance> => (Witness(left), Instance(right)),
+    "UNEQUAL" <left:Instance> <right:Witness> => (Witness(right), Instance(left)),
     "UNEQUAL" <left:Witness> <right:Witness> => (Witness(left), Witness(right))
 }
 
