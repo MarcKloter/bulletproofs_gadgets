@@ -5,7 +5,7 @@ extern crate bulletproofs;
 #[macro_use] extern crate lalrpop_util;
 extern crate math;
 
-use bulletproofs::r1cs::{Prover, Variable, LinearCombination};
+use bulletproofs::r1cs::{Prover, LinearCombination};
 use bulletproofs::{BulletproofGens, PedersenGens};
 use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
@@ -13,11 +13,13 @@ use bulletproofs_gadgets::gadget::Gadget;
 use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::MerkleTree256;
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
+use bulletproofs_gadgets::mimc_hash::mimc::mimc_hash;
 use bulletproofs_gadgets::equality::equality_gadget::Equality;
 use bulletproofs_gadgets::inequality::inequality_gadget::Inequality;
-use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
+use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars, scalar_to_be};
 use bulletproofs_gadgets::lalrpop::ast::*;
 use bulletproofs_gadgets::lalrpop::assignment_parser::*;
+use bulletproofs_gadgets::commitments::commit_single;
 
 use std::io::prelude::*;
 use std::io::{BufReader};
@@ -92,7 +94,7 @@ fn main() -> std::io::Result<()> {
 
                 let preimage = assignments.get_witness(preimage, None);
 
-                no_of_bp_gens += (preimage.1.len() + 1) * 512;
+                no_of_bp_gens += (preimage.1.len() + 1) * 1024;
 
                 let gadget = MimcHash256::new(image);
                 let coms = gadget.prove(&mut prover, &preimage.0, &preimage.2);
@@ -108,19 +110,33 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                let instance_vars: Vec<Vec<u8>> = instance_vars.iter()
-                    .map(|var| assignments.get_instance(var.clone(), Some(&assert_32))).collect();
-                let (witness_vars, witness_scalars): (Vec<Variable>, Vec<Scalar>) = witness_vars.iter()
-                    .map(|var| {
-                        let witness = assignments.get_witness(var.clone(), Some(&assert_witness_32));
-                        (witness.2[0], witness.0[0])
-                    }).unzip();
+                // add generators for hashes of leaves
+                no_of_bp_gens += (witness_vars.len() + 1) * 1024;
 
-                no_of_bp_gens += witness_vars.len() * 512;
-                no_of_bp_gens += instance_vars.len() * 512;
+                let instance_vars: Vec<LinearCombination> = instance_vars.into_iter()
+                    .map(|var| mimc_hash(&assignments.get_instance(var.clone(), None)).into()).collect();
+
+                let mut derived_commitments = Vec::new();
+                let witness_vars: Vec<LinearCombination> = witness_vars.into_iter()
+                    .map(|var| {
+                        let preimage = assignments.get_witness(var.clone(), None);
+                        let image: Scalar = mimc_hash(&preimage.3);
+                        let image_com = commit_single(&mut prover, &scalar_to_be(&image));
+                        derived_commitments.push(image_com.1);
+                        let hash_gadget = MimcHash256::new(image_com.2.into());
+                        hash_gadget.prove(&mut prover, &preimage.0, &preimage.2).into_iter()
+                            .for_each(|cr| derived_commitments.push(cr));
+                        
+                        image_com.2.into()
+                    }).collect();
                 
-                let gadget = MerkleTree256::new(root, instance_vars, pattern.clone());
-                let _ = gadget.prove(&mut prover, &witness_scalars, &witness_vars);
+                assignments.parse_derived_wtns(derived_commitments, index, &mut coms_file).expect("unable to write .coms file");
+                
+                // add generators for hashes in branches
+                no_of_bp_gens += (2 * (witness_vars.len() + instance_vars.len()) - 1) * 2048;
+                
+                let gadget = MerkleTree256::new(root, instance_vars, witness_vars, pattern.clone());
+                let _ = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
             },
             GadgetOp::Equality => {
                 let equality_parser = gadget_grammar::EqualityGadgetParser::new();

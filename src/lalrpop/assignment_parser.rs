@@ -19,7 +19,7 @@ const COMMITMENTS_EXT: &str = ".coms";
 
 pub struct Assignments {
     commitments: HashMap<String, Variable>,
-    witness_vars: HashMap<String, (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>)>,
+    witness_vars: HashMap<String, (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>, Vec<u8>)>,
     instance_vars: HashMap<String, Vec<u8>>
 }
 
@@ -101,8 +101,8 @@ impl Assignments {
     pub fn get_witness(
         &self, 
         var: Var, 
-        assertion: Option<&dyn Fn(String, &(Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>))>
-    ) -> (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>) {
+        assertion: Option<&dyn Fn(String, &(Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>, Vec<u8>))>
+    ) -> (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>, Vec<u8>) {
         match var {
             Var::Witness(name) => {
                 let error = &format!("missing witness var {}", &name);
@@ -152,7 +152,7 @@ impl Assignments {
         for line in BufReader::new(file).lines() {
             let (name, bytes) = witness_parser.parse(&line.unwrap()).unwrap();
             let commitment = commit(prover, &bytes);
-            self.witness_vars.insert(name.clone(), commitment.clone());
+            self.witness_vars.insert(name.clone(), (commitment.0.clone(), commitment.1.clone(), commitment.2.clone(), bytes));
             for (index, com) in commitment.1.iter().enumerate() {
                 coms_file.write_all(&format_com("C", &name[1..name.len()], &index, com))?;
             }
@@ -189,7 +189,7 @@ pub fn assert_32(name: String, assignment: &Vec<u8>) {
 
 pub fn assert_witness_32(
     name: String, 
-    assignment: &(Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>)
+    assignment: &(Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>, Vec<u8>)
 ) {
     assert!(assignment.0.len() == 1, format!("witness var {} is longer than 32 bytes", &name));
 }

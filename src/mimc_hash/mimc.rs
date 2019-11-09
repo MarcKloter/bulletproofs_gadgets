@@ -3,7 +3,6 @@ use crate::pkcs7;
 use super::mimc_consts::ROUND_CONSTANTS_769;
 use conversions::{be_to_scalars, le_to_scalar};
 
-#[allow(dead_code)]
 /// MiMC block cipher
 fn mimc_encryption(
     p: &Scalar,
@@ -23,7 +22,6 @@ fn mimc_encryption(
     state + k
 }
 
-#[allow(dead_code)]
 /// MiMC hash in sponge mode from Markus Schofnegger
 fn mimc_sponge_1(
     preimage: &Vec<Scalar>,
@@ -59,7 +57,6 @@ fn mimc_sponge_2(
     key
 }
 
-#[allow(dead_code)]
 /// MiMCHash-256b, rate = 256, capacity = 513
 pub fn mimc_hash(preimage: &Vec<u8>) -> Scalar {
     let mut preimage: Vec<Scalar> = be_to_scalars(preimage);
@@ -77,7 +74,6 @@ pub fn mimc_hash(preimage: &Vec<u8>) -> Scalar {
     mimc_sponge_1(&preimage, NUM_ROUNDS, &round_constants)
 }
 
-#[allow(dead_code)]
 fn pad(preimage: &mut Vec<Scalar>) {
     let last_block: Scalar = *preimage.last().unwrap();
     let mut last_block_le: Vec<u8> = Vec::new();

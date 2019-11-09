@@ -1,7 +1,6 @@
 use bulletproofs::r1cs::{ConstraintSystem, Variable, LinearCombination};
 use curve25519_dalek::scalar::Scalar;
 use gadget::Gadget;
-use conversions::{vars_to_lc, be_to_scalar};
 use mimc_hash::mimc_hash_gadget::MimcHash256;
 use std::fmt;
 
@@ -31,7 +30,8 @@ impl fmt::Display for Pattern {
 
 pub struct MerkleTree256 {
     root: LinearCombination,
-    instance_vars: Vec<Vec<u8>>,
+    instance_vars: Vec<LinearCombination>,
+    witness_vars: Vec<LinearCombination>,
     pattern: Pattern,
     gadget: MimcHash256
 }
@@ -44,15 +44,11 @@ impl Gadget for MerkleTree256 {
     fn assemble(
         &self, 
         cs: &mut dyn ConstraintSystem, 
-        witnesses: &Vec<Variable>, 
+        _: &Vec<Variable>, 
         _: &Vec<(Option<Scalar>, Variable)>
     ) {
-        let mut w_values = vars_to_lc(witnesses);
-        let mut i_values: Vec<LinearCombination> = Vec::new();
-    
-        for var in &self.instance_vars {
-            i_values.push(be_to_scalar(&var).into());
-        }
+        let mut w_values: Vec<LinearCombination> = self.witness_vars.clone();
+        let mut i_values: Vec<LinearCombination> = self.instance_vars.clone();
 
         let hash: LinearCombination = self.parse(cs, &mut w_values, &mut i_values, self.pattern.clone());
 
@@ -61,10 +57,16 @@ impl Gadget for MerkleTree256 {
 }
 
 impl MerkleTree256 {
-    pub fn new(root: LinearCombination, instance_vars: Vec<Vec<u8>>, pattern: Pattern) -> MerkleTree256 {
+    pub fn new(
+        root: LinearCombination, 
+        instance_vars: Vec<LinearCombination>, 
+        witness_vars: Vec<LinearCombination>, 
+        pattern: Pattern
+    ) -> MerkleTree256 {
         MerkleTree256 {
             root: root,
             instance_vars: instance_vars,
+            witness_vars: witness_vars,
             pattern: pattern,
             gadget: MimcHash256::init()
         }
@@ -120,6 +122,7 @@ mod tests {
     use bulletproofs::{BulletproofGens, PedersenGens};
     use bulletproofs::r1cs::{Prover, Verifier};
     use curve25519_dalek::ristretto::CompressedRistretto;
+    use conversions::{vars_to_lc, be_to_scalar};
 
     const W1: [u8; 32] = [
         0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
@@ -242,9 +245,9 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), Vec::new(), pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), Vec::new(), vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
@@ -287,9 +290,10 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), instance_vars, pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let instance_vars: Vec<LinearCombination> = instance_vars.into_iter().map(|bytes| be_to_scalar(&bytes).into()).collect();
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), instance_vars, vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
@@ -329,9 +333,9 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), Vec::new(), pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), Vec::new(), vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
@@ -370,9 +374,9 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), Vec::new(), pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), Vec::new(), vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
@@ -412,9 +416,9 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), Vec::new(), pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), Vec::new(), vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
@@ -453,9 +457,9 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), Vec::new(), pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), Vec::new(), vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MerkleTree");
@@ -527,9 +531,9 @@ mod tests {
         let mut prover_transcript = Transcript::new(b"MerkleTree");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
-        let gadget = MerkleTree256::new(root.into(), Vec::new(), pattern);
-        let (scalars, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
-        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &scalars, &variables);
+        let (_, witness_commitments, variables) = commit_all_single(&mut prover, &witnesses);
+        let gadget = MerkleTree256::new(root.into(), Vec::new(), vars_to_lc(&variables), pattern);
+        let derived_commitments: Vec<CompressedRistretto> = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
         let proof = prover.prove(&bp_gens).unwrap();
     
         let mut verifier_transcript = Transcript::new(b"MerkleTree");

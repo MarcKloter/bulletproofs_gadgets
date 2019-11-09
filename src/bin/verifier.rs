@@ -13,6 +13,7 @@ use bulletproofs_gadgets::gadget::Gadget;
 use bulletproofs_gadgets::merkle_tree::merkle_tree_gadget::MerkleTree256;
 use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
+use bulletproofs_gadgets::mimc_hash::mimc::mimc_hash;
 use bulletproofs_gadgets::equality::equality_gadget::Equality;
 use bulletproofs_gadgets::inequality::inequality_gadget::Inequality;
 use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
@@ -101,7 +102,7 @@ fn main() -> std::io::Result<()> {
                 let padded_block = assignments.get_derived(index, 0);
                 let padding = assignments.get_derived(index, 1);
 
-                no_of_bp_gens += (preimage.len() + 1) * 512;
+                no_of_bp_gens += (preimage.len() + 1) * 1024;
 
                 let gadget = MimcHash256::new(image);
                 gadget.verify(&mut verifier, &preimage, &vec![padded_block, padding]);
@@ -116,16 +117,33 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                let instance_vars: Vec<Vec<u8>> = instance_vars.iter()
-                    .map(|var| assignments.get_instance(var.clone(), Some(&assert_32))).collect();
-                let witness_vars: Vec<Variable> = witness_vars.iter()
-                    .map(|var| assignments.get_commitment(var.clone(), 0)).collect();
+                // add generators for hashes of leaves
+                no_of_bp_gens += (witness_vars.len() + 1) * 1024;
 
-                no_of_bp_gens += witness_vars.len() * 512;
-                no_of_bp_gens += instance_vars.len() * 512;
+                let instance_vars: Vec<LinearCombination> = instance_vars.into_iter()
+                    .map(|var| mimc_hash(&assignments.get_instance(var.clone(), None)).into()).collect();
+
+                let mut derived_pointer = 0;
                 
-                let gadget = MerkleTree256::new(root.into(), instance_vars, pattern.clone());
-                gadget.verify(&mut verifier, &witness_vars, &Vec::new());
+                let witness_vars: Vec<LinearCombination> = witness_vars.into_iter()
+                    .map(|var| {
+                        let preimage: Vec<Variable> = assignments.get_all_commitments(var.clone());
+                        let image = assignments.get_derived(index, derived_pointer);
+                        let padded_block = assignments.get_derived(index, derived_pointer+1);
+                        let padding = assignments.get_derived(index, derived_pointer+2);
+                        derived_pointer += 3;
+
+                        let gadget = MimcHash256::new(image.into());
+                        gadget.verify(&mut verifier, &preimage, &vec![padded_block, padding]);
+
+                        image.into()
+                    }).collect();
+                
+                // add generators for hashes in branches
+                no_of_bp_gens += (2 * (witness_vars.len() + instance_vars.len()) - 1) * 2048;
+                
+                let gadget = MerkleTree256::new(root.into(), instance_vars, witness_vars, pattern.clone());
+                gadget.verify(&mut verifier, &Vec::new(), &Vec::new());
             },
             GadgetOp::Equality => {
                 let equality_parser = gadget_grammar::EqualityGadgetParser::new();

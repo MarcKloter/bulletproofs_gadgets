@@ -37,7 +37,7 @@ fn test_combine_gadgets() {
         0x8f, 0x7d, 0x96, 0x79, 0x8f, 0xae, 0x9d, 0x4a, 
         0x16, 0x82, 0xbc, 0x59, 0x2f, 0x7c, 0xb1, 0x26
     ]; // W2
-    let (w2_scalar, w2_commitment, w2_var) = commit_single(&mut prover, &image);
+    let (_, w2_commitment, w2_var) = commit_single(&mut prover, &image);
 
     let mut witness_commitments: Vec<CompressedRistretto> = Vec::new();
     witness_commitments.push(w1_commitment[0].clone());
@@ -72,8 +72,8 @@ fn test_combine_gadgets() {
     ]; // I2
     let pattern: Pattern = hash!(W, I);
 
-    let p_merkle = MerkleTree256::new(root.into(), vec![merkle_leaf.clone()], pattern.clone());
-    let merkle_dc = p_merkle.prove(&mut prover, &vec![w2_scalar], &vec![w2_var]);
+    let p_merkle = MerkleTree256::new(root.into(), vec![be_to_scalar(&merkle_leaf).into()], vec![w2_var.into()], pattern.clone());
+    let merkle_dc = p_merkle.prove(&mut prover, &Vec::new(), &Vec::new());
 
     // ---------- CREATE PROOF ----------
     let proof = prover.prove(&p_bp_gens).unwrap();
@@ -96,9 +96,9 @@ fn test_combine_gadgets() {
     v_hash.verify(&mut verifier, &vec![witness_vars[0]], &hash_vars);
 
     // ---------- MERKLE ----------
-    let v_merkle = MerkleTree256::new(root.into(), vec![merkle_leaf.clone()], pattern.clone());
-    let merkle_vars = verifier_commit(&mut verifier, merkle_dc);
-    v_merkle.verify(&mut verifier, &vec![witness_vars[1]], &merkle_vars);
+    let v_merkle = MerkleTree256::new(root.into(), vec![be_to_scalar(&merkle_leaf).into()], vec![witness_vars[1].into()], pattern.clone());
+    let _ = verifier_commit(&mut verifier, merkle_dc);
+    v_merkle.verify(&mut verifier, &Vec::new(), &Vec::new());
 
     // ---------- VERIFY PROOF ----------
     assert!(verifier.verify(&proof, &v_pc_gens, &v_bp_gens).is_ok());
