@@ -111,7 +111,7 @@ fn main() -> std::io::Result<()> {
                 };
 
                 // add generators for hashes of leaves
-                no_of_bp_gens += (witness_vars.len() + 1) * 1024;
+                no_of_bp_gens += (witness_vars.len() + 1) * 2048;
 
                 let instance_vars: Vec<LinearCombination> = instance_vars.into_iter()
                     .map(|var| mimc_hash(&assignments.get_instance(var.clone(), None)).into()).collect();
