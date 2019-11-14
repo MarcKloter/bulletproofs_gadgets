@@ -120,7 +120,7 @@ mod tests {
     use bulletproofs::{BulletproofGens, PedersenGens};
     use merlin::Transcript;
     use bulletproofs::r1cs::{Prover, Verifier};
-    use conversions::be_to_scalars;
+    use conversions::{be_to_scalars, scalars_to_lc};
 
     #[test]
     fn test_inequality_gadget_1() {
@@ -191,11 +191,7 @@ mod tests {
         ];
 
         let right_assignment: Vec<Scalar> = be_to_scalars(&right);
-
-        let right_lc: Vec<LinearCombination> = right_assignment
-            .iter()
-            .map(|scalar| (*scalar).into())
-            .collect();
+        let right_lc: Vec<LinearCombination> = scalars_to_lc(&right_assignment);
             
         let left_assignment: Vec<u8> = vec![
             0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
@@ -236,11 +232,7 @@ mod tests {
         ];
 
         let right_assignment: Vec<Scalar> = be_to_scalars(&right);
-
-        let right_lc: Vec<LinearCombination> = right_assignment
-            .iter()
-            .map(|scalar| (*scalar).into())
-            .collect();
+        let right_lc: Vec<LinearCombination> = scalars_to_lc(&right_assignment);
             
         let left_assignment: Vec<u8> = vec![
             0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
@@ -279,11 +271,7 @@ mod tests {
         ];
 
         let right_assignment: Vec<Scalar> = be_to_scalars(&right);
-
-        let right_lc: Vec<LinearCombination> = right_assignment
-            .iter()
-            .map(|scalar| (*scalar).into())
-            .collect();
+        let right_lc: Vec<LinearCombination> = scalars_to_lc(&right_assignment);
             
         let left_assignment: Vec<u8> = vec![
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
@@ -322,11 +310,7 @@ mod tests {
         ];
 
         let right_assignment: Vec<Scalar> = be_to_scalars(&value);
-
-        let right_lc: Vec<LinearCombination> = right_assignment
-            .iter()
-            .map(|scalar| (*scalar).into())
-            .collect();
+        let right_lc: Vec<LinearCombination> = scalars_to_lc(&right_assignment);
 
         let pc_gens = PedersenGens::default();
         let bp_gens = BulletproofGens::new(4, 1);
@@ -358,11 +342,7 @@ mod tests {
         ];
 
         let right_assignment: Vec<Scalar> = be_to_scalars(&right);
-
-        let right_lc: Vec<LinearCombination> = right_assignment
-            .iter()
-            .map(|scalar| (*scalar).into())
-            .collect();
+        let right_lc: Vec<LinearCombination> = scalars_to_lc(&right_assignment);
             
         let left_assignment: Vec<u8> = vec![
             0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 
@@ -405,11 +385,7 @@ mod tests {
         ];
 
         let right_assignment: Vec<Scalar> = be_to_scalars(&right);
-
-        let right_lc: Vec<LinearCombination> = right_assignment
-            .iter()
-            .map(|scalar| (*scalar).into())
-            .collect();
+        let right_lc: Vec<LinearCombination> = scalars_to_lc(&right_assignment);
             
         let left_assignment: Vec<u8> = vec![
             0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e, 0x21, 

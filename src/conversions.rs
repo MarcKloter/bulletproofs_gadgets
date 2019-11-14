@@ -76,12 +76,21 @@ pub fn scalar_to_be(scalar: &Scalar) -> Vec<u8> {
 }
 
 pub fn vars_to_lc(variables: &Vec<Variable>) -> Vec<LinearCombination> {
-    let lc: Vec<LinearCombination> = variables
-    .iter()
-    .map(|var| var.clone().into())
-    .collect();
+    let lcs: Vec<LinearCombination> = variables
+        .iter()
+        .map(|var| var.clone().into())
+        .collect();
     
-    lc
+    lcs
+}
+
+pub fn scalars_to_lc(scalars: &Vec<Scalar>) -> Vec<LinearCombination> {
+    let lcs: Vec<LinearCombination> = scalars
+        .iter()
+        .map(|scalar| scalar.clone().into())
+        .collect();
+    
+    lcs
 }
 
 #[cfg(test)]
