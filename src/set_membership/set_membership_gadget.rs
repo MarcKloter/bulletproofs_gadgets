@@ -236,7 +236,7 @@ mod tests {
         let witness_set = vec![
             VALUE3.to_vec(), 
             VALUE5.to_vec(), 
-            VALUE1.to_vec(), 
+            VALUE1.to_vec()
         ];
         let instance_set = vec![
             be_to_scalar(&VALUE4.to_vec()), 
@@ -273,7 +273,7 @@ mod tests {
         let witness_value = VALUE1.to_vec();
         let witness_set = vec![
             VALUE3.to_vec(), 
-            VALUE5.to_vec(), 
+            VALUE5.to_vec()
         ];
         let instance_set = vec![
             be_to_scalar(&VALUE4.to_vec()), 
@@ -312,11 +312,50 @@ mod tests {
             VALUE3.to_vec(), 
             VALUE5.to_vec(), 
             vec![0x00],
-            VALUE1.to_vec(), 
+            VALUE1.to_vec()
         ];
         let instance_set = vec![
             be_to_scalar(&VALUE4.to_vec()), 
             be_to_scalar(&VALUE2.to_vec())
+        ];
+        let instance_set_assignment = scalars_to_lc(&instance_set);
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(64, 1);
+
+        let mut prover_transcript = Transcript::new(b"SetMembership");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+
+        let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
+        let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
+        let (witness_set_assignments, witness_set_commitments, witness_set_vars) = commit_all_single(&mut prover, &witness_set);
+        let derived_commitments = gadget_prover.prove(&mut prover, &witness_set_assignments, &witness_set_vars);
+        let proof = prover.prove(&bp_gens).unwrap();
+
+        let mut verifier_transcript = Transcript::new(b"SetMembership");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, vec![witness_commitment]);
+        let gadget_verifier = SetMembership::new(witness_vars[0].into(), None, instance_set_assignment, None);
+        let witness_set_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_set_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
+        
+        gadget_verifier.verify(&mut verifier, &witness_set_vars, &derived_vars);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+    }
+
+    /// Test mixed set, where the value is contained twice
+    #[test]
+    fn test_set_membership_gadget_5() {
+        let witness_value = VALUE1.to_vec();
+        let witness_set = vec![
+            VALUE3.to_vec(), 
+            VALUE1.to_vec(), 
+            VALUE5.to_vec()
+        ];
+        let instance_set = vec![
+            be_to_scalar(&VALUE4.to_vec()), 
+            be_to_scalar(&VALUE2.to_vec()), 
+            be_to_scalar(&VALUE1.to_vec())
         ];
         let instance_set_assignment = scalars_to_lc(&instance_set);
 
