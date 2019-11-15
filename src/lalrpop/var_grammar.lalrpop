@@ -13,7 +13,7 @@ pub WitnessVar: (String, Vec<u8>) = {
 };
 
 Commitment: String = {
-    <n:r"[C|D]{1}[\d]+-[\d]+"> => n.to_string()
+    <n:r"[C|D]{1}[\d]+-[\d]+(-[\d]+)?"> => n.to_string()
 }
 
 Instance: String = {

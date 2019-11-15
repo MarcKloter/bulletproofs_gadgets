@@ -15,6 +15,7 @@ use bulletproofs_gadgets::bounds_check::bounds_check_gadget::BoundsCheck;
 use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
 use bulletproofs_gadgets::mimc_hash::mimc::mimc_hash;
 use bulletproofs_gadgets::equality::equality_gadget::Equality;
+use bulletproofs_gadgets::set_membership::set_membership_gadget::SetMembership;
 use bulletproofs_gadgets::inequality::inequality_gadget::Inequality;
 use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
 use bulletproofs_gadgets::lalrpop::ast::*;
@@ -79,8 +80,8 @@ fn main() -> std::io::Result<()> {
                 let min: Vec<u8> = assignments.get_instance(min, Some(&assert_32));
                 let max: Vec<u8> = assignments.get_instance(max, Some(&assert_32));
 
-                let a = assignments.get_derived(index, 0);
-                let b = assignments.get_derived(index, 1);
+                let a = assignments.get_derived(index, 0, 0);
+                let b = assignments.get_derived(index, 1, 0);
 
                 no_of_bp_gens += 256;
 
@@ -99,13 +100,14 @@ fn main() -> std::io::Result<()> {
 
                 let preimage: Vec<Variable> = assignments.get_all_commitments(preimage);
 
-                let padded_block = assignments.get_derived(index, 0);
-                let padding = assignments.get_derived(index, 1);
+                let derived1 = assignments.get_derived(index, 0, 0);
+                let derived2 = assignments.inquire_derived(index, 1, 0);
+                let derived_witnesses = if derived2.is_some() { vec![derived1, *derived2.unwrap()] } else { vec![derived1] };
 
                 no_of_bp_gens += (preimage.len() + 1) * 1024;
 
                 let gadget = MimcHash256::new(image);
-                gadget.verify(&mut verifier, &preimage, &vec![padded_block, padding]);
+                gadget.verify(&mut verifier, &preimage, &derived_witnesses);
             },
             GadgetOp::Merkle => {
                 let merkle_parser = gadget_grammar::MerkleGadgetParser::new();
@@ -117,26 +119,16 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                // add generators for hashes of leaves
-                no_of_bp_gens += (witness_vars.len() + 1) * 2048;
-
                 let instance_vars: Vec<LinearCombination> = instance_vars.into_iter()
-                    .map(|var| mimc_hash(&assignments.get_instance(var.clone(), None)).into()).collect();
-
-                let mut derived_pointer = 0;
+                    .map(|var| hash_instance(var, &assignments)).collect();
                 
+                let mut hash_number = 0;
                 let witness_vars: Vec<LinearCombination> = witness_vars.into_iter()
                     .map(|var| {
-                        let preimage: Vec<Variable> = assignments.get_all_commitments(var.clone());
-                        let image = assignments.get_derived(index, derived_pointer);
-                        let padded_block = assignments.get_derived(index, derived_pointer+1);
-                        let padding = assignments.get_derived(index, derived_pointer+2);
-                        derived_pointer += 3;
-
-                        let gadget = MimcHash256::new(image.into());
-                        gadget.verify(&mut verifier, &preimage, &vec![padded_block, padding]);
-
-                        image.into()
+                        let (image_var, bp_gens) = hash_witness(&mut verifier, var, index, hash_number, &assignments);
+                        no_of_bp_gens += bp_gens;
+                        hash_number += 1;
+                        image_var.into()
                     }).collect();
                 
                 // add generators for hashes in branches
@@ -178,16 +170,110 @@ fn main() -> std::io::Result<()> {
 
                 // get delta and delta_inv values
                 for i in 0..(left.len() * 2) {
-                    derived_witnesses.push(assignments.get_derived(index, i));
+                    derived_witnesses.push(assignments.get_derived(index, i, 0));
                 }
 
                 // get sum_inv value
-                derived_witnesses.push(assignments.get_derived(index, left.len() * 2));
+                derived_witnesses.push(assignments.get_derived(index, left.len() * 2, 0));
 
                 no_of_bp_gens += left.len()*4;
 
                 let gadget = Inequality::new(right_lc, None);
                 gadget.verify(&mut verifier, &left, &derived_witnesses);
+            },
+            GadgetOp::SetMembership => {
+                let set_membership_parser = gadget_grammar::SetMembershipGadgetParser::new();
+                let (member, set) = set_membership_parser.parse(&line).unwrap();
+                
+                let member_lcs: Vec<LinearCombination> = match member {
+                    Var::Witness(_) => assignments.get_all_commitments(member.clone()).into_iter().map(|var| var.into()).collect(),
+                    Var::Instance(_) => be_to_scalars(&assignments.get_instance(member.clone(), None)).into_iter().map(|scalar| scalar.into()).collect(),
+                    _ => panic!("invalid state")
+                };
+
+                let mut member_lc = member_lcs[0].clone();
+                let mut apply_hashing = false;
+
+                let mut witness_set_vars = Vec::new();
+                let mut instance_set_lcs = Vec::new();
+                let mut derived_witnesses: Vec<Variable> = Vec::new();
+                let mut derived_pointer = 0;
+
+                if !apply_hashing {
+                    for element in set.clone() {
+                        match element {
+                            Var::Witness(_) => {
+                                let witness = assignments.get_all_commitments(element.clone());
+                                derived_witnesses.push(assignments.get_derived(index, derived_pointer, 0));
+                                derived_pointer += 1;
+                                if witness.len() == 1 {
+                                    witness_set_vars.push(witness[0]);
+                                } else {
+                                    apply_hashing = true;
+                                }
+                            },
+                            Var::Instance(_) => {
+                                let instance_lcs: Vec<LinearCombination> = be_to_scalars(&assignments.get_instance(element, None)).into_iter().map(|scalar| scalar.into()).collect();
+                                if instance_lcs.len() == 1 {
+                                    instance_set_lcs.push(instance_lcs[0].clone());
+                                } else {
+                                    apply_hashing = true;
+                                }
+                            },
+                            _ => panic!("invalid state")
+                        }
+                    }
+                }
+
+                if member_lcs.len() > 1 {
+                    apply_hashing = true;
+                }
+
+                // get one-hot vector
+                for _ in 0..set.len() {
+                    derived_witnesses.push(assignments.get_derived(index, derived_pointer, 0));
+                    derived_pointer += 1;
+                }
+
+                if apply_hashing {
+                    let mut hash_number = 1;
+                    let hashed_member_lc: LinearCombination = match member {
+                        Var::Witness(_) => {
+                            let (image_var, bp_gens) = hash_witness(&mut verifier, member, index, hash_number, &assignments);
+                            no_of_bp_gens += bp_gens;
+                                hash_number += 1;
+                            image_var.into()
+                        },
+                        Var::Instance(_) => hash_instance(member, &assignments),
+                        _ => panic!("invalid state")
+                    };
+
+                    member_lc = hashed_member_lc;
+
+                    witness_set_vars = Vec::new();
+                    instance_set_lcs = Vec::new();            
+
+                    for element in set {
+                        match element {
+                            Var::Witness(_) => {
+                                let (image_var, bp_gens) = hash_witness(&mut verifier, element, index, hash_number, &assignments);
+                                no_of_bp_gens += bp_gens;
+                                hash_number += 1;
+                                witness_set_vars.push(image_var);
+                            },
+                            Var::Instance(_) => {
+                                let image_lc = hash_instance(element, &assignments);
+                                instance_set_lcs.push(image_lc);
+                            },
+                            _ => panic!("invalid state")
+                        }
+                    }
+                }
+
+                no_of_bp_gens += instance_set_lcs.len() * 5 + witness_set_vars.len() * 8;
+
+                let gadget = SetMembership::new(member_lc, None, instance_set_lcs, None);
+                gadget.verify(&mut verifier, &witness_set_vars, &derived_witnesses);
             }
         }
     }
@@ -201,4 +287,37 @@ fn main() -> std::io::Result<()> {
     }
  
     Ok(())
+}
+
+fn hash_witness(
+    verifier: &mut Verifier,
+    var: Var,
+    index: usize,
+    subroutine: usize,
+    assignments: &Assignments
+) -> (Variable, usize) {
+    let preimage: Vec<Variable> = assignments.get_all_commitments(var);
+    let image = assignments.get_derived(index, 0, subroutine);
+
+    let derived1 = assignments.get_derived(index, 1, subroutine);
+    let derived2 = assignments.inquire_derived(index, 2, subroutine);
+    let derived_witnesses = if derived2.is_some() { vec![derived1, *derived2.unwrap()] } else { vec![derived1] };
+
+    let gadget = MimcHash256::new(image.into());
+    gadget.verify(verifier, &preimage, &derived_witnesses);
+
+    // add generators for hasing
+    let no_of_bp_gens = preimage.len() * 2048;
+    
+    (image, no_of_bp_gens)
+}
+
+fn hash_instance(
+    var: Var,
+    assignments: &Assignments
+) -> LinearCombination {
+    let instance_var: Vec<u8> = assignments.get_instance(var, None);
+    let image = mimc_hash(&instance_var);
+
+    image.into()
 }

@@ -78,8 +78,13 @@ impl Assignments {
         }
     }
 
-    pub fn get_derived(&self, gadget: usize, index: usize) -> Variable {
-        let key = format!("D{}-{}", gadget, index);
+    pub fn inquire_derived(&self, gadget: usize, index: usize, subroutine: usize) -> Option<&Variable> {
+        let key = format!("D{}-{}-{}", gadget, subroutine, index);
+        self.commitments.get(&key)
+    }
+
+    pub fn get_derived(&self, gadget: usize, index: usize, subroutine: usize) -> Variable {
+        let key = format!("D{}-{}-{}", gadget, subroutine, index);
         *self.commitments.get(&key).expect(&format!("missing commitment {}", &key))
     }
 
@@ -165,10 +170,12 @@ impl Assignments {
         &self,
         coms: Vec<CompressedRistretto>,
         gadget: usize,
+        subroutine: usize,
         coms_file: &mut File
     ) -> std::io::Result<()> {
         for (index, com) in coms.iter().enumerate() {
-            coms_file.write_all(&format_com("D", &gadget.to_string(), &index, com))?;
+            let identifier = format!("{}-{}", gadget.to_string(), subroutine);
+            coms_file.write_all(&format_com("D", &identifier, &index, com))?;
         }
         Ok(())
     }

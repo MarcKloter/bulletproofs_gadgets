@@ -24,6 +24,10 @@ pub InequalityGadget: (Var, Var) = {
     "UNEQUAL" <left:Witness> <right:Witness> => (Witness(left), Witness(right))
 }
 
+pub SetMembershipGadget: (Var, Vec<Var>) = {
+    "SET_MEMBER" <member:Variable> <set:Variable+> => (member, set)
+}
+
 pub MerkleGadget: (Var, Vec<Var>, Vec<Var>, Pattern) = {
     "MERKLE" <root:Instance> <tree:Tree> => {
         let (instance_vars, witness_vars, pattern) = tree;
@@ -59,14 +63,15 @@ Tree: (Vec<Var>, Vec<Var>, Pattern) = {
     "("<i:Instance> <w:Witness>")" => (vec![Instance(i)], vec![Witness(w)], hash!(I,W))
 }
 
-Commitment: String = {
-    <n:r"[C|D]{1}[\d]+-[\d]+"> => n.to_string()
-}
-
 Instance: String = {
     <n:r"I[\d]+"> => n.to_string()
 }
 
 Witness: String = {
     <n:r"W[\d]+"> => n.to_string()
+}
+
+Variable: Var = {
+    <instance:Instance> => Instance(instance),
+    <witness:Witness> => Witness(witness)
 }

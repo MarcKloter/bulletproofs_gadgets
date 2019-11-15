@@ -23,19 +23,19 @@ impl Gadget for SetMembership {
 
         let instance_vars_assignments = self.instance_vars_assignments.as_ref().unwrap();
         let mut set: Vec<Scalar> = Vec::new();
-        set.extend(witnesses);
-        set.extend(instance_vars_assignments);
+        for e in witnesses { set.push(e.clone()); }
+        for e in instance_vars_assignments { set.push(e.clone()); }
 
         let value: Scalar = self.value_assignment.unwrap();
         // create one hot vector for the value in the set
         for element in set {
-            if element == value { 
+            if element == value {
                 derived_witnesses.push(Scalar::one());
-            } else { 
+            } else {
                 derived_witnesses.push(Scalar::zero()); 
             }
         }
-
+        
         derived_witnesses
     }
 
@@ -77,11 +77,11 @@ impl Gadget for SetMembership {
         self.one_hot_vector(cs, one_hot_vector.clone());
 
         let mut set: Vec<LinearCombination> = Vec::new();
-        set.extend(witness_set_elements);
-        set.extend(self.instance_vars.clone());
+        for e in witness_set_elements { set.push(e.clone()); }
+        for e in self.instance_vars.clone() { set.push(e.clone()); }
         
         // show that the element that is marked by the one-hot vector is equal to the value
-         self.hadamard_product(cs, one_hot_vector, set, self.value.clone());
+        self.hadamard_product(cs, one_hot_vector, set, self.value.clone());
     }
 }
 
