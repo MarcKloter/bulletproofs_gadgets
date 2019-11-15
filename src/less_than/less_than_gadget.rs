@@ -113,7 +113,7 @@ mod tests {
         let left_lc: LinearCombination = left_assignment.into();
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(512, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"LessThan");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
@@ -152,7 +152,7 @@ mod tests {
         let left_lc: LinearCombination = left_assignment.into();
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(512, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"LessThan");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
@@ -193,7 +193,7 @@ mod tests {
         let left_lc: LinearCombination = left_assignment.into();
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(512, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"LessThan");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
@@ -234,7 +234,7 @@ mod tests {
         let left_lc: LinearCombination = left_assignment.into();
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(512, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"LessThan");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
@@ -271,7 +271,7 @@ mod tests {
         let left_lc: LinearCombination = left_assignment.into();
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(512, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"LessThan");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
@@ -310,7 +310,7 @@ mod tests {
         let left_lc: LinearCombination = left_assignment.into();
 
         let pc_gens = PedersenGens::default();
-        let bp_gens = BulletproofGens::new(512, 1);
+        let bp_gens = BulletproofGens::new(1024, 1);
 
         let mut prover_transcript = Transcript::new(b"LessThan");
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);

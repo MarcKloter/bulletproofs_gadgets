@@ -16,6 +16,7 @@ use bulletproofs_gadgets::mimc_hash::mimc_hash_gadget::MimcHash256;
 use bulletproofs_gadgets::mimc_hash::mimc::mimc_hash;
 use bulletproofs_gadgets::equality::equality_gadget::Equality;
 use bulletproofs_gadgets::set_membership::set_membership_gadget::SetMembership;
+use bulletproofs_gadgets::less_than::less_than_gadget::LessThan;
 use bulletproofs_gadgets::inequality::inequality_gadget::Inequality;
 use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
 use bulletproofs_gadgets::lalrpop::ast::*;
@@ -153,6 +154,21 @@ fn main() -> std::io::Result<()> {
 
                 let gadget = Equality::new(right);
                 gadget.verify(&mut verifier, &left, &Vec::new());
+            },
+            GadgetOp::LessThan => {
+                let less_than_parser = gadget_grammar::LessThanGadgetParser::new();
+                let (left, right) = less_than_parser.parse(&line).unwrap();
+
+                let left = assignments.get_commitment(left, 0);
+                let right = assignments.get_commitment(right, 0);
+
+                no_of_bp_gens += 763;
+                
+                let delta = assignments.get_derived(index, 0, 0);
+                let delta_inv = assignments.get_derived(index, 1, 0);
+                
+                let gadget = LessThan::new(left.into(), None, right.into(), None);
+                gadget.verify(&mut verifier, &Vec::new(), &vec![delta, delta_inv]);
             },
             GadgetOp::Inequality => {
                 let inequality_parser = gadget_grammar::InequalityGadgetParser::new();

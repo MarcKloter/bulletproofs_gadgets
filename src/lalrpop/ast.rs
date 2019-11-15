@@ -4,6 +4,7 @@ pub enum GadgetOp {
     Hash,
     Bound,
     Merkle,
+    LessThan,
     Equality,
     Inequality,
     SetMembership
@@ -24,6 +25,7 @@ impl GadgetOp {
             GadgetOp::Bound => "BOUND",
             GadgetOp::Merkle => "MERKLE",
             GadgetOp::Equality => "EQUALS",
+            GadgetOp::LessThan => "LESS_THAN",
             GadgetOp::Inequality => "UNEQUAL",
             GadgetOp::SetMembership => "SET_MEMBER"
         }
@@ -40,6 +42,7 @@ impl FromStr for GadgetOp {
             "MERKLE" => Ok(GadgetOp::Merkle),
             "EQUALS" => Ok(GadgetOp::Equality),
             "UNEQUAL" => Ok(GadgetOp::Inequality),
+            "LESS_THAN" => Ok(GadgetOp::LessThan),
             "SET_MEMBER" => Ok(GadgetOp::SetMembership),
             _ => Err(()),
         }
