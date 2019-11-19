@@ -1,4 +1,4 @@
-use bulletproofs::r1cs::{ConstraintSystem, Variable, Prover, Verifier};
+use bulletproofs::r1cs::{ConstraintSystem, Variable, Prover};
 use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::scalar::Scalar;
 use rand::thread_rng;
@@ -14,13 +14,12 @@ pub trait Gadget {
         witnesses: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     );
-
-    fn prove(
+    
+    fn setup(
         &self, 
         prover: &mut Prover, 
-        witnesses: &Vec<Scalar>, 
-        commitment_vars: &Vec<Variable>
-    ) -> Vec<CompressedRistretto> {
+        witnesses: &Vec<Scalar>
+    ) -> (Vec<CompressedRistretto>, Vec<(Option<Scalar>, Variable)>) {
         let derived_scalars: Vec<Scalar> = self.preprocess(witnesses);
 
         // create gadget-specific pedersen commitments
@@ -35,14 +34,21 @@ pub trait Gadget {
             })
             .collect();
 
-        self.assemble(prover, &commitment_vars, &derived_witnesses);
+        (commitments, derived_witnesses)
+    }
 
-        commitments
+    fn prove(
+        &self, 
+        prover: &mut dyn ConstraintSystem, 
+        commitment_vars: &Vec<Variable>,
+        derived_witnesses: &Vec<(Option<Scalar>, Variable)>
+    ) {
+        self.assemble(prover, &commitment_vars, &derived_witnesses);
     }
 
     fn verify(
         &self, 
-        verifier: &mut Verifier, 
+        verifier: &mut dyn ConstraintSystem, 
         witnesses: &Vec<Variable>, 
         derived: &Vec<Variable>
     ) {

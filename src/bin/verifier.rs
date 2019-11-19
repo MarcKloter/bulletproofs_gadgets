@@ -44,8 +44,6 @@ fn main() -> std::io::Result<()> {
     // ---------- COLLECT CMD LINE ARGUMENTS ----------
     let filename = Box::leak(env::args().nth(1).expect("missing argument").into_boxed_str());
 
-    let mut no_of_bp_gens = 0;
-
     // ---------- CREATE VERIFIER ----------
     let mut verifier_transcript = Transcript::new(filename.as_bytes());
     let pc_gens = PedersenGens::default();
@@ -84,8 +82,6 @@ fn main() -> std::io::Result<()> {
                 let a = assignments.get_derived(index, 0, 0);
                 let b = assignments.get_derived(index, 1, 0);
 
-                no_of_bp_gens += 256;
-
                 let gadget = BoundsCheck::new(&min, &max);
                 gadget.verify(&mut verifier, &vec![var], &vec![a, b]);
             },
@@ -104,8 +100,6 @@ fn main() -> std::io::Result<()> {
                 let derived1 = assignments.get_derived(index, 0, 0);
                 let derived2 = assignments.inquire_derived(index, 1, 0);
                 let derived_witnesses = if derived2.is_some() { vec![derived1, *derived2.unwrap()] } else { vec![derived1] };
-
-                no_of_bp_gens += (preimage.len() + 1) * 1024;
 
                 let gadget = MimcHash256::new(image);
                 gadget.verify(&mut verifier, &preimage, &derived_witnesses);
@@ -126,14 +120,10 @@ fn main() -> std::io::Result<()> {
                 let mut hash_number = 0;
                 let witness_vars: Vec<LinearCombination> = witness_vars.into_iter()
                     .map(|var| {
-                        let (image_var, bp_gens) = hash_witness(&mut verifier, var, index, hash_number, &assignments);
-                        no_of_bp_gens += bp_gens;
+                        let image_var = hash_witness(&mut verifier, var, index, hash_number, &assignments);
                         hash_number += 1;
                         image_var.into()
                     }).collect();
-                
-                // add generators for hashes in branches
-                no_of_bp_gens += (2 * (witness_vars.len() + instance_vars.len()) - 1) * 2048;
                 
                 let gadget = MerkleTree256::new(root.into(), instance_vars, witness_vars, pattern.clone());
                 gadget.verify(&mut verifier, &Vec::new(), &Vec::new());
@@ -150,8 +140,6 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                no_of_bp_gens += left.len();
-
                 let gadget = Equality::new(right);
                 gadget.verify(&mut verifier, &left, &Vec::new());
             },
@@ -161,8 +149,6 @@ fn main() -> std::io::Result<()> {
 
                 let left = assignments.get_commitment(left, 0);
                 let right = assignments.get_commitment(right, 0);
-
-                no_of_bp_gens += 763;
                 
                 let delta = assignments.get_derived(index, 0, 0);
                 let delta_inv = assignments.get_derived(index, 1, 0);
@@ -191,8 +177,6 @@ fn main() -> std::io::Result<()> {
 
                 // get sum_inv value
                 derived_witnesses.push(assignments.get_derived(index, left.len() * 2, 0));
-
-                no_of_bp_gens += left.len()*4;
 
                 let gadget = Inequality::new(right_lc, None);
                 gadget.verify(&mut verifier, &left, &derived_witnesses);
@@ -255,8 +239,7 @@ fn main() -> std::io::Result<()> {
                     let mut hash_number = 1;
                     let hashed_member_lc: LinearCombination = match member {
                         Var::Witness(_) => {
-                            let (image_var, bp_gens) = hash_witness(&mut verifier, member, index, hash_number, &assignments);
-                            no_of_bp_gens += bp_gens;
+                            let image_var = hash_witness(&mut verifier, member, index, hash_number, &assignments);
                                 hash_number += 1;
                             image_var.into()
                         },
@@ -272,8 +255,7 @@ fn main() -> std::io::Result<()> {
                     for element in set {
                         match element {
                             Var::Witness(_) => {
-                                let (image_var, bp_gens) = hash_witness(&mut verifier, element, index, hash_number, &assignments);
-                                no_of_bp_gens += bp_gens;
+                                let image_var = hash_witness(&mut verifier, element, index, hash_number, &assignments);
                                 hash_number += 1;
                                 witness_set_vars.push(image_var);
                             },
@@ -286,8 +268,6 @@ fn main() -> std::io::Result<()> {
                     }
                 }
 
-                no_of_bp_gens += instance_set_lcs.len() * 5 + witness_set_vars.len() * 8;
-
                 let gadget = SetMembership::new(member_lc, None, instance_set_lcs, None);
                 gadget.verify(&mut verifier, &witness_set_vars, &derived_witnesses);
             }
@@ -295,7 +275,7 @@ fn main() -> std::io::Result<()> {
     }
 
     // ---------- VERIFY PROOF ----------
-    let bp_gens = BulletproofGens::new(round_pow2(no_of_bp_gens), 1);
+    let bp_gens = BulletproofGens::new(round_pow2(verifier.get_num_vars()), 1);
     let result = verifier.verify(&proof, &pc_gens, &bp_gens);
     match result {
         Err(_) => println!("false"),
@@ -311,7 +291,7 @@ fn hash_witness(
     index: usize,
     subroutine: usize,
     assignments: &Assignments
-) -> (Variable, usize) {
+) -> Variable {
     let preimage: Vec<Variable> = assignments.get_all_commitments(var);
     let image = assignments.get_derived(index, 0, subroutine);
 
@@ -322,10 +302,7 @@ fn hash_witness(
     let gadget = MimcHash256::new(image.into());
     gadget.verify(verifier, &preimage, &derived_witnesses);
 
-    // add generators for hasing
-    let no_of_bp_gens = preimage.len() * 2048;
-    
-    (image, no_of_bp_gens)
+    image
 }
 
 fn hash_instance(

@@ -119,7 +119,8 @@ mod tests {
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
         let gadget = LessThan::new(left_lc, Some(left_assignment), right_lc, Some(right_assignment));
-        let derived_commitments = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &Vec::new());
+        gadget.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"LessThan");
@@ -158,7 +159,8 @@ mod tests {
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
         let gadget = LessThan::new(left_lc, Some(left_assignment), right_lc, Some(right_assignment));
-        let derived_commitments = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &Vec::new());
+        gadget.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"LessThan");
@@ -199,7 +201,8 @@ mod tests {
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
         let gadget = LessThan::new(left_lc, Some(left_assignment), right_lc, Some(right_assignment));
-        let derived_commitments = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &Vec::new());
+        gadget.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"LessThan");
@@ -240,7 +243,8 @@ mod tests {
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
         let gadget = LessThan::new(left_lc, Some(left_assignment), right_lc, Some(right_assignment));
-        let derived_commitments = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &Vec::new());
+        gadget.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"LessThan");
@@ -277,7 +281,8 @@ mod tests {
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
         let gadget = LessThan::new(left_lc, Some(left_assignment), right_lc, Some(right_assignment));
-        let derived_commitments = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &Vec::new());
+        gadget.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"LessThan");
@@ -316,7 +321,8 @@ mod tests {
         let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
 
         let gadget = LessThan::new(left_lc, Some(left_assignment), right_lc, Some(right_assignment));
-        let derived_commitments = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &Vec::new());
+        gadget.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"LessThan");

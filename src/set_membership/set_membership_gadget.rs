@@ -216,7 +216,8 @@ mod tests {
 
         let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
         let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
-        let derived_commitments = gadget_prover.prove(&mut prover, &Vec::new(), &Vec::new());
+        let (derived_commitments, derived_witnesses) = gadget_prover.setup(&mut prover, &Vec::new());
+        gadget_prover.prove(&mut prover, &Vec::new(), &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"SetMembership");
@@ -253,7 +254,8 @@ mod tests {
         let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
         let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
         let (witness_set_assignments, witness_set_commitments, witness_set_vars) = commit_all_single(&mut prover, &witness_set);
-        let derived_commitments = gadget_prover.prove(&mut prover, &witness_set_assignments, &witness_set_vars);
+        let (derived_commitments, derived_witnesses) = gadget_prover.setup(&mut prover, &witness_set_assignments);
+        gadget_prover.prove(&mut prover, &witness_set_vars, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"SetMembership");
@@ -290,7 +292,8 @@ mod tests {
         let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
         let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
         let (witness_set_assignments, witness_set_commitments, witness_set_vars) = commit_all_single(&mut prover, &witness_set);
-        let derived_commitments = gadget_prover.prove(&mut prover, &witness_set_assignments, &witness_set_vars);
+        let (derived_commitments, derived_witnesses) = gadget_prover.setup(&mut prover, &witness_set_assignments);
+        gadget_prover.prove(&mut prover, &witness_set_vars, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"SetMembership");
@@ -329,7 +332,8 @@ mod tests {
         let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
         let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
         let (witness_set_assignments, witness_set_commitments, witness_set_vars) = commit_all_single(&mut prover, &witness_set);
-        let derived_commitments = gadget_prover.prove(&mut prover, &witness_set_assignments, &witness_set_vars);
+        let (derived_commitments, derived_witnesses) = gadget_prover.setup(&mut prover, &witness_set_assignments);
+        gadget_prover.prove(&mut prover, &witness_set_vars, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"SetMembership");
@@ -368,7 +372,8 @@ mod tests {
         let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
         let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
         let (witness_set_assignments, witness_set_commitments, witness_set_vars) = commit_all_single(&mut prover, &witness_set);
-        let derived_commitments = gadget_prover.prove(&mut prover, &witness_set_assignments, &witness_set_vars);
+        let (derived_commitments, derived_witnesses) = gadget_prover.setup(&mut prover, &witness_set_assignments);
+        gadget_prover.prove(&mut prover, &witness_set_vars, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"SetMembership");

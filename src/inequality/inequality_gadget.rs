@@ -169,7 +169,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");
@@ -208,7 +209,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");
@@ -249,7 +251,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");
@@ -288,7 +291,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");
@@ -320,7 +324,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &value);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");
@@ -361,7 +366,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");
@@ -402,7 +408,8 @@ mod tests {
 
         let gadget = Inequality::new(right_lc, Some(right_assignment));
         let (scalars, witness_commitments, variables) = commit(&mut prover, &left_assignment);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"Inequality");

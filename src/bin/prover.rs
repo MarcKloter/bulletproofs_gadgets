@@ -45,8 +45,6 @@ fn main() -> std::io::Result<()> {
     // ---------- COLLECT CMD LINE ARGUMENTS ----------
     let filename = Box::leak(env::args().nth(1).expect("missing argument").into_boxed_str());
 
-    let mut no_of_bp_gens = 0;
-
     // ---------- CREATE PROVER ----------
     let mut transcript = Transcript::new(filename.as_bytes());
     let pc_gens = PedersenGens::default();
@@ -78,11 +76,10 @@ fn main() -> std::io::Result<()> {
                 let min: Vec<u8> = assignments.get_instance(min, Some(&assert_32));
                 let max: Vec<u8> = assignments.get_instance(max, Some(&assert_32));
 
-                no_of_bp_gens += 256;
-
                 let gadget = BoundsCheck::new(&min, &max);
-                let coms = gadget.prove(&mut prover, &var.0, &var.2);
-                assignments.parse_derived_wtns(coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &var.0);
+                gadget.prove(&mut prover, &var.2, &derived_wtns);
+                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::Hash => {
                 let hash_parser = gadget_grammar::HashGadgetParser::new();
@@ -96,11 +93,10 @@ fn main() -> std::io::Result<()> {
 
                 let preimage = assignments.get_witness(preimage, None);
 
-                no_of_bp_gens += (preimage.1.len() + 1) * 1024;
-
                 let gadget = MimcHash256::new(image);
-                let coms = gadget.prove(&mut prover, &preimage.0, &preimage.2);
-                assignments.parse_derived_wtns(coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &preimage.0);
+                gadget.prove(&mut prover, &preimage.2, &derived_wtns);
+                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::Merkle => {
                 let merkle_parser = gadget_grammar::MerkleGadgetParser::new();
@@ -118,17 +114,13 @@ fn main() -> std::io::Result<()> {
                 let mut hash_number = 0;
                 let witness_vars: Vec<LinearCombination> = witness_vars.into_iter()
                     .map(|var| {
-                        let (_, var, bp_gens) = hash_witness(&mut prover, var, &assignments, index, hash_number, &mut coms_file);
-                        no_of_bp_gens += bp_gens;
+                        let (_, var) = hash_witness(&mut prover, var, &assignments, index, hash_number, &mut coms_file);
                         hash_number += 1;
                         var.into()
                     }).collect();
                 
-                // add generators for hashes in branches
-                no_of_bp_gens += (2 * (witness_vars.len() + instance_vars.len()) - 1) * 2048;
-                
                 let gadget = MerkleTree256::new(root, instance_vars, witness_vars, pattern.clone());
-                let _ = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
+                gadget.prove(&mut prover, &Vec::new(), &Vec::new());
             },
             GadgetOp::Equality => {
                 let equality_parser = gadget_grammar::EqualityGadgetParser::new();
@@ -142,11 +134,10 @@ fn main() -> std::io::Result<()> {
                     _ => panic!("invalid state")
                 };
 
-                no_of_bp_gens += left_scalars.len();
-
                 let gadget = Equality::new(right);
-                let coms = gadget.prove(&mut prover, &left_scalars, &left_vars);
-                assignments.parse_derived_wtns(coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &left_scalars);
+                gadget.prove(&mut prover, &left_vars, &derived_wtns);
+                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::LessThan => {
                 let less_than_parser = gadget_grammar::LessThanGadgetParser::new();
@@ -155,11 +146,10 @@ fn main() -> std::io::Result<()> {
                 let (left_scalars, _, left_vars, _) = assignments.get_witness(left, Some(&assert_witness_32));
                 let (right_scalars, _, right_vars, _) = assignments.get_witness(right, Some(&assert_witness_32));
 
-                no_of_bp_gens += 763;
-
                 let gadget = LessThan::new(left_vars[0].into(), Some(left_scalars[0]), right_vars[0].into(), Some(right_scalars[0]));
-                let coms = gadget.prove(&mut prover, &Vec::new(), &Vec::new());
-                assignments.parse_derived_wtns(coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &Vec::new());
+                gadget.prove(&mut prover, &Vec::new(), &derived_wtns);
+                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::Inequality => {
                 let inequality_parser = gadget_grammar::InequalityGadgetParser::new();
@@ -180,12 +170,11 @@ fn main() -> std::io::Result<()> {
                     },
                     _ => panic!("invalid state")
                 };
-
-                no_of_bp_gens += left.1.len()*4;
-
+                
                 let gadget = Inequality::new(right_lc, Some(right_scalars));
-                let coms = gadget.prove(&mut prover, &left.0, &left.2);
-                assignments.parse_derived_wtns(coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &left.0);
+                gadget.prove(&mut prover, &left.2, &derived_wtns);
+                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
             },
             GadgetOp::SetMembership => {
                 let set_membership_parser = gadget_grammar::SetMembershipGadgetParser::new();
@@ -247,8 +236,7 @@ fn main() -> std::io::Result<()> {
                     let mut hash_number = 1;
                     let (scalar, lc) = match member {
                         Var::Witness(_) => {
-                            let (scalar, var, bp_gens) = hash_witness(&mut prover, member, &assignments, index, hash_number, &mut coms_file);
-                            no_of_bp_gens += bp_gens;
+                            let (scalar, var) = hash_witness(&mut prover, member, &assignments, index, hash_number, &mut coms_file);
                             hash_number += 1;
                             (scalar, var.into())
                         },
@@ -267,8 +255,7 @@ fn main() -> std::io::Result<()> {
                     for element in set {
                         match element {
                             Var::Witness(_) => {
-                                let (scalar, var, bp_gens) = hash_witness(&mut prover, element, &assignments, index, hash_number, &mut coms_file);
-                                no_of_bp_gens += bp_gens;
+                                let (scalar, var) = hash_witness(&mut prover, element, &assignments, index, hash_number, &mut coms_file);
                                 hash_number += 1;
                                 witness_set_vars.push(var);
                                 witness_set_scalars.push(scalar);
@@ -283,12 +270,10 @@ fn main() -> std::io::Result<()> {
                     }
                 }
 
-                no_of_bp_gens += instance_set_scalars.len() * 5 + witness_set_scalars.len() * 8;
-
                 let gadget = SetMembership::new(member_lc, Some(member_scalar), instance_set_lcs.clone(), Some(instance_set_scalars));
-                let coms = gadget.prove(&mut prover, &witness_set_scalars, &witness_set_vars);
-                
-                assignments.parse_derived_wtns(coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &witness_set_scalars);
+                gadget.prove(&mut prover, &witness_set_vars, &derived_wtns);
+                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
             }
         }
     }
@@ -297,7 +282,7 @@ fn main() -> std::io::Result<()> {
     println!("{}", prover.num_constraints());
 
     // ---------- CREATE PROOF ----------
-    let bp_gens = BulletproofGens::new(round_pow2(no_of_bp_gens), 1);
+    let bp_gens = BulletproofGens::new(round_pow2(prover.get_num_multiplications()), 1);
     let proof = prover.prove(&bp_gens).unwrap();
 
     // ---------- WRITE PROOF TO FILE ----------
@@ -314,22 +299,20 @@ fn hash_witness(
     index: usize,
     subroutine: usize,
     coms_file: &mut File
-) -> (Scalar, Variable, usize) {
+) -> (Scalar, Variable) {
     let mut hash_commitments = Vec::new();
     let (preimage_scalars, _, preimage_vars, preimage_bytes) = assignments.get_witness(var, None);
     let image: Scalar = mimc_hash(&preimage_bytes);
     let (image_scalar, image_com, image_var) = commit_single(prover, &scalar_to_be(&image));
     hash_commitments.push(image_com);
     let hash_gadget = MimcHash256::new(image_var.into());
-    hash_gadget.prove(prover, &preimage_scalars, &preimage_vars).into_iter()
-        .for_each(|com| hash_commitments.push(com));
+    let (derived_coms, derived_wtns) = hash_gadget.setup(prover, &preimage_scalars);
+    hash_gadget.prove(prover, &preimage_vars, &derived_wtns);
+    derived_coms.into_iter().for_each(|com| hash_commitments.push(com));
 
     assignments.parse_derived_wtns(hash_commitments.clone(), index, subroutine, coms_file).expect("unable to write .coms file");
     
-    // add generators for hasing
-    let no_of_bp_gens = preimage_scalars.len() * 2048;
-    
-    (image_scalar, image_var, no_of_bp_gens)
+    (image_scalar, image_var)
 }
 
 fn hash_instance(

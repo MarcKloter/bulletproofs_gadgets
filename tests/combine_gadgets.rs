@@ -48,11 +48,13 @@ fn test_combine_gadgets() {
     let max: Vec<u8> = vec![100];
 
     let p_bounds = BoundsCheck::new(&min, &max);
-    let bounds_dc = p_bounds.prove(&mut prover, &w1_scalar, &w1_var);
+    let (bounds_dc, bounds_dw) = p_bounds.setup(&mut prover, &w1_scalar);
+    p_bounds.prove(&mut prover, &w1_var, &bounds_dw);
 
     // ---------- HASH ----------
     let p_hash = MimcHash256::new(w2_var.into());
-    let hash_dc = p_hash.prove(&mut prover, &w1_scalar, &w1_var);
+    let (hash_dc, hash_dw) = p_hash.setup(&mut prover, &w1_scalar);
+    p_hash.prove(&mut prover, &w1_var, &hash_dw);
 
     // ---------- MERKLE ----------
     //     I1
@@ -73,7 +75,7 @@ fn test_combine_gadgets() {
     let pattern: Pattern = hash!(W, I);
 
     let p_merkle = MerkleTree256::new(root.into(), vec![be_to_scalar(&merkle_leaf).into()], vec![w2_var.into()], pattern.clone());
-    let merkle_dc = p_merkle.prove(&mut prover, &Vec::new(), &Vec::new());
+    p_merkle.prove(&mut prover, &Vec::new(), &Vec::new());
 
     // ---------- CREATE PROOF ----------
     let proof = prover.prove(&p_bp_gens).unwrap();
@@ -97,7 +99,7 @@ fn test_combine_gadgets() {
 
     // ---------- MERKLE ----------
     let v_merkle = MerkleTree256::new(root.into(), vec![be_to_scalar(&merkle_leaf).into()], vec![witness_vars[1].into()], pattern.clone());
-    let _ = verifier_commit(&mut verifier, merkle_dc);
+    let _ = verifier_commit(&mut verifier, Vec::new());
     v_merkle.verify(&mut verifier, &Vec::new(), &Vec::new());
 
     // ---------- VERIFY PROOF ----------

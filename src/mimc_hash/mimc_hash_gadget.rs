@@ -182,7 +182,8 @@ mod tests {
 
         let gadget = MimcHash256::new(image.into());
         let (scalars, witness_commitments, variables) = commit(&mut prover, &preimage);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
@@ -218,7 +219,8 @@ mod tests {
 
         let gadget = MimcHash256::new(image.into());
         let (scalars, witness_commitments, variables) = commit(&mut prover, &preimage);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
@@ -256,7 +258,8 @@ mod tests {
 
         let gadget = MimcHash256::new(image.into());
         let (scalars, witness_commitments, variables) = commit(&mut prover, &preimage);
-        let derived_commitments = gadget.prove(&mut prover, &scalars, &variables);
+        let (derived_commitments, derived_witnesses) = gadget.setup(&mut prover, &scalars);
+        gadget.prove(&mut prover, &variables, &derived_witnesses);
         let proof = prover.prove(&bp_gens).unwrap();
 
         let mut verifier_transcript = Transcript::new(b"MiMCHash");
