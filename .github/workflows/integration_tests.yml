@@ -9,6 +9,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Install nightly 2019-10-26
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly-2019-10-26
+        override: true
     - name: Build
       run: cargo build --release
     - name: Test bounds_check
