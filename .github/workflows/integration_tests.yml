@@ -1,0 +1,27 @@
+name: Integration Tests
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
+      run: cargo build --release
+    - name: Test bounds_check
+      run: cargo run --release --bin prover tests/resources/bounds_check
+    - name: Test equality
+      run: cargo run --release --bin prover tests/resources/equality
+    - name: Test inequality
+      run: cargo run --release --bin prover tests/resources/inequality
+    - name: Test less_than
+      run: cargo run --release --bin prover tests/resources/less_than
+    - name: Test merkle_tree
+      run: cargo run --release --bin prover tests/resources/merkle_tree
+    - name: Test mimc_hash
+      run: cargo run --release --bin prover tests/resources/mimc_hash
+    - name: Test set_membership
+      run: cargo run --release --bin prover tests/resources/set_membership
