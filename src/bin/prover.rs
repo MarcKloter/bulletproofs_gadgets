@@ -126,18 +126,16 @@ fn main() -> std::io::Result<()> {
                 let equality_parser = gadget_grammar::EqualityGadgetParser::new();
                 let (left, right) = equality_parser.parse(&line).unwrap();
 
-                let (left_scalars, _, left_vars, _)  = assignments.get_witness(left, None);
+                let (_, _, left_vars, _)  = assignments.get_witness(left, None);
 
                 let right: Vec<LinearCombination> = match right {
                     Var::Witness(_) => assignments.get_witness(right, None).2.into_iter().map(|var| var.into()).collect(),
                     Var::Instance(_) => be_to_scalars(&assignments.get_instance(right, None)).into_iter().map(|scalar| scalar.into()).collect(),
                     _ => panic!("invalid state")
                 };
-
+                
                 let gadget = Equality::new(right);
-                let (derived_coms, derived_wtns) = gadget.setup(&mut prover, &left_scalars);
-                gadget.prove(&mut prover, &left_vars, &derived_wtns);
-                assignments.parse_derived_wtns(derived_coms, index, 0, &mut coms_file).expect("unable to write .coms file");
+                gadget.prove(&mut prover, &left_vars, &Vec::new());
             },
             GadgetOp::LessThan => {
                 let less_than_parser = gadget_grammar::LessThanGadgetParser::new();
