@@ -197,15 +197,12 @@ fn main() -> std::io::Result<()> {
                 let mut witness_set_vars = Vec::new();
                 let mut instance_set_lcs = Vec::new();
                 let mut derived_witnesses: Vec<Variable> = Vec::new();
-                let mut derived_pointer = 0;
 
                 if !apply_hashing {
                     for element in set.clone() {
                         match element {
                             Var::Witness(_) => {
                                 let witness = assignments.get_all_commitments(element.clone());
-                                derived_witnesses.push(assignments.get_derived(index, derived_pointer, 0));
-                                derived_pointer += 1;
                                 if witness.len() == 1 {
                                     witness_set_vars.push(witness[0]);
                                 } else {
@@ -230,9 +227,8 @@ fn main() -> std::io::Result<()> {
                 }
 
                 // get one-hot vector
-                for _ in 0..set.len() {
+                for derived_pointer in 0..set.len() {
                     derived_witnesses.push(assignments.get_derived(index, derived_pointer, 0));
-                    derived_pointer += 1;
                 }
 
                 if apply_hashing {

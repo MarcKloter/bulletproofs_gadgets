@@ -14,18 +14,12 @@ impl Gadget for SetMembership {
         assert!(self.value_assignment.is_some(), "missing value assignment");
         assert!(self.instance_vars_assignments.is_some(), "missing instance vars assignments");
 
-        let mut derived_witnesses: Vec<Scalar> = Vec::new();
-        
-        // commit to the multiplicative inverse of all witnesses to later show that they are all non-zero
-        for witness in witnesses {
-            derived_witnesses.push(witness.invert());
-        }
-
         let instance_vars_assignments = self.instance_vars_assignments.as_ref().unwrap();
         let mut set: Vec<Scalar> = Vec::new();
         for e in witnesses { set.push(e.clone()); }
         for e in instance_vars_assignments { set.push(e.clone()); }
-
+        
+        let mut derived_witnesses: Vec<Scalar> = Vec::new();
         let value: Scalar = self.value_assignment.unwrap();
         // create one hot vector for the value in the set
         for element in set {
@@ -45,27 +39,9 @@ impl Gadget for SetMembership {
         witnesses: &Vec<Variable>, 
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) {
-        let mut witness_set_elements: Vec<LinearCombination> = Vec::new();
-        for witness in witnesses {
-            witness_set_elements.push(LinearCombination::from(*witness));
-        }
-
-        for (index, witness) in witness_set_elements.iter().enumerate() {
-            let (_, witness_inv) = derived_witnesses[index];
-            let witness_inv_lc = LinearCombination::from(witness_inv);
-        
-            let (_, _, should_be_one) = cs.multiply(witness.clone(), witness_inv_lc);
-
-            let one: LinearCombination = Scalar::one().into();
-
-            // show that witnesses are non-zero
-            cs.constrain(one - should_be_one);
-        }
-
         let mut one_hot_vector = Vec::new();
-        for index in witnesses.len()..derived_witnesses.len() {
-            let (_, bit) = derived_witnesses[index];
-            let bit_lc: LinearCombination = LinearCombination::from(bit);
+        for (_, bit) in derived_witnesses {
+            let bit_lc: LinearCombination = LinearCombination::from(*bit);
 
             // show that these derived witnesses are bits
             self.is_bit(cs, bit_lc.clone());
@@ -77,7 +53,7 @@ impl Gadget for SetMembership {
         self.one_hot_vector(cs, one_hot_vector.clone());
 
         let mut set: Vec<LinearCombination> = Vec::new();
-        for e in witness_set_elements { set.push(e.clone()); }
+        for w in witnesses { set.push(LinearCombination::from(*w)); }
         for e in self.instance_vars.clone() { set.push(e.clone()); }
         
         // show that the element that is marked by the one-hot vector is equal to the value
@@ -315,7 +291,7 @@ mod tests {
             VALUE3.to_vec(), 
             VALUE5.to_vec(), 
             vec![0x00],
-            VALUE1.to_vec()
+            VALUE2.to_vec()
         ];
         let instance_set = vec![
             be_to_scalar(&VALUE4.to_vec()), 
@@ -385,5 +361,45 @@ mod tests {
         
         gadget_verifier.verify(&mut verifier, &witness_set_vars, &derived_vars);
         assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+    }
+
+    /// Test mixed set for zero member
+    #[test]
+    fn test_set_membership_gadget_6() {
+        let witness_value = vec![0x00];
+        let witness_set = vec![
+            VALUE3.to_vec(), 
+            VALUE5.to_vec(), 
+            vec![0x00],
+            VALUE1.to_vec()
+        ];
+        let instance_set = vec![
+            be_to_scalar(&VALUE4.to_vec()), 
+            be_to_scalar(&VALUE2.to_vec())
+        ];
+        let instance_set_assignment = scalars_to_lc(&instance_set);
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(64, 1);
+
+        let mut prover_transcript = Transcript::new(b"SetMembership");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+
+        let (witness_assignment, witness_commitment, witness_var) = commit_single(&mut prover, &witness_value);
+        let gadget_prover = SetMembership::new(witness_var.into(), Some(witness_assignment), instance_set_assignment.clone(), Some(instance_set));
+        let (witness_set_assignments, witness_set_commitments, witness_set_vars) = commit_all_single(&mut prover, &witness_set);
+        let (derived_commitments, derived_witnesses) = gadget_prover.setup(&mut prover, &witness_set_assignments);
+        gadget_prover.prove(&mut prover, &witness_set_vars, &derived_witnesses);
+        let proof = prover.prove(&bp_gens).unwrap();
+
+        let mut verifier_transcript = Transcript::new(b"SetMembership");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        let witness_vars: Vec<Variable> = verifier_commit(&mut verifier, vec![witness_commitment]);
+        let gadget_verifier = SetMembership::new(witness_vars[0].into(), None, instance_set_assignment, None);
+        let witness_set_vars: Vec<Variable> = verifier_commit(&mut verifier, witness_set_commitments);
+        let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
+        
+        gadget_verifier.verify(&mut verifier, &witness_set_vars, &derived_vars);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }
