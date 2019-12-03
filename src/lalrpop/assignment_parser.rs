@@ -1,5 +1,6 @@
 use lalrpop::ast::*;
 use commitments::commit;
+use cs_buffer::ProverBuffer;
 
 use bulletproofs::r1cs::{Verifier, Prover, Variable};
 use curve25519_dalek::ristretto::CompressedRistretto;
@@ -20,6 +21,7 @@ const COMMITMENTS_EXT: &str = ".coms";
 pub struct Assignments {
     commitments: HashMap<String, Variable>,
     witness_vars: HashMap<String, (Vec<Scalar>, Vec<CompressedRistretto>, Vec<Variable>, Vec<u8>)>,
+    derived_witnesses: Vec<Scalar>,
     instance_vars: HashMap<String, Vec<u8>>
 }
 
@@ -28,6 +30,7 @@ impl Assignments {
         Assignments {
             commitments: HashMap::new(),
             witness_vars: HashMap::new(),
+            derived_witnesses: Vec::new(),
             instance_vars: HashMap::new()
         }
     }
@@ -163,6 +166,33 @@ impl Assignments {
             }
         }
         Ok(())
+    }
+
+    /// commit all witnesses previously read into the given constraint system (used to create cs buffers)
+    pub fn buffer_commit_wtns(
+        &self, 
+        prover_buffer: &mut ProverBuffer
+    ) {
+        for (_, (scalars, _, _, _)) in self.witness_vars.clone() {
+            prover_buffer.commit(&scalars);
+        }
+    }
+
+    /// commit the buffer to all previsouly derived witnesses for the variable index to match the real cs
+    pub fn buffer_commit_drvd(
+        &self, 
+        prover_buffer: &mut ProverBuffer
+    ) {
+        for scalar in self.derived_witnesses.clone() {
+            prover_buffer.commit(&vec![scalar]);
+        }
+
+    }
+
+    pub fn cache_derived_wtns(&mut self, derived_witnesses: Vec<(Option<Scalar>, Variable)>) {
+        for (scalar, _) in derived_witnesses {
+            self.derived_witnesses.push(scalar.unwrap());
+        }
     }
 
     /// write derived witness commitment to .coms file

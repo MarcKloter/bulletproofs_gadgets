@@ -44,3 +44,7 @@ jobs:
       run: |
         cargo run --release --bin prover tests/resources/set_membership
         cargo run --release --bin verifier tests/resources/set_membership
+    - name: Test or_conjunction
+      run: |
+        cargo run --release --bin prover tests/resources/or
+        cargo run --release --bin verifier tests/resources/or

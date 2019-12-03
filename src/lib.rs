@@ -31,8 +31,10 @@ pub mod equality;
 pub mod inequality;
 pub mod less_than;
 pub mod set_membership;
+pub mod or;
 pub mod gadget;
 pub mod conversions;
+pub mod cs_buffer;
 pub mod utils;
 pub mod lalrpop;
 
