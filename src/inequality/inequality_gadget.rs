@@ -51,7 +51,7 @@ impl Gadget for Inequality {
         derived_witnesses: &Vec<(Option<Scalar>, Variable)>
     ) {
         if self.right_hand.len() != left_hand.len() {
-            return cs.constrain(Scalar::one().into());
+            return cs.constrain(Scalar::zero().into());
         }
 
         // sum up all deltas, if left = right then this would be 0 (as all deltas would be 0)
