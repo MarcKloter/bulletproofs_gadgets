@@ -224,8 +224,6 @@ mod tests {
 
     #[test]
     fn test_inequality_gadget_3() {
-        // case: right > left
-        
         let right: Vec<u8> = vec![
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
@@ -376,7 +374,7 @@ mod tests {
         let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
         gadget.verify(&mut verifier, &witness_vars, &derived_vars);
-        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 
     #[test]
@@ -418,6 +416,6 @@ mod tests {
         let derived_vars: Vec<Variable> = verifier_commit(&mut verifier, derived_commitments);
         
         gadget.verify(&mut verifier, &witness_vars, &derived_vars);
-        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
     }
 }
