@@ -132,14 +132,14 @@ fn get_clauses(
         panic!("unexpected end of input");
     }
 
-    let mut depth = 1;
+    let mut depth = 0;
 
     while iter.peek().is_some() {
         let (_, line) = iter.next().unwrap();
         let line = line.unwrap();
         let gadget_op = get_gadget_op(&line);
         if gadget_op.is_block_end() { clauses.push(block); block = Vec::new(); }
-        if gadget_op.is_array_start() { depth = depth - 1; }
+        if gadget_op.is_array_start() { depth = depth + 1; }
         if gadget_op.is_array_end() { depth = depth - 1; }
         if depth == 0 { return clauses; }
         block.push(line);
@@ -208,15 +208,12 @@ fn or_conjunction(
     assignments.buffer_commit_wtns(&mut prover_buffer);
     assignments.buffer_commit_drvd(&mut prover_buffer);
 
-    let mut local_index = index;
+    let mut local_index = index + 1;
     for clause in clauses {
-        local_index = local_index + 1;
         for line in clause {
-            local_index = local_index + 1;
             parse_gadget(iter, &line, assignments, prover, &mut prover_buffer, true, local_index, coms_file);
+            local_index = local_index + 1;
         }
-        local_index = local_index + 1;
-
         prover_buffer.rewind();
     }
 

@@ -98,8 +98,7 @@ fn parse_gadget(
     verifier: &mut dyn ConstraintSystem,
     index: usize
 ) {
-    let gadget_op = line.split_whitespace().next().unwrap_or("");
-    match get_gadget_op(gadget_op) {
+    match get_gadget_op(line) {
         GadgetOp::Bound => bounds_check_gadget(line, assignments, verifier, index),
         GadgetOp::Hash => mimc_hash_gadget(line, assignments, verifier, index),
         GadgetOp::Merkle => merkle_tree_gadget(line, assignments, verifier, index),
@@ -112,7 +111,8 @@ fn parse_gadget(
     }
 }
 
-fn get_gadget_op(gadget_op: &str) -> GadgetOp {
+fn get_gadget_op(line: &String) -> GadgetOp {
+    let gadget_op = line.split_whitespace().next().unwrap_or("");
     let error = format!("unknown gadget: {}", &gadget_op);
     gadget_op.parse::<GadgetOp>().expect(&error)
 }
@@ -127,14 +127,14 @@ fn get_clauses(
         panic!("unexpected end of input");
     }
 
-    let mut depth = 1;
+    let mut depth = 0;
 
     while iter.peek().is_some() {
         let (_, line) = iter.next().unwrap();
         let line = line.unwrap();
         let gadget_op = get_gadget_op(&line);
         if gadget_op.is_block_end() { clauses.push(block); block = Vec::new(); }
-        if gadget_op.is_array_start() { depth = depth - 1; }
+        if gadget_op.is_array_start() { depth = depth + 1; }
         if gadget_op.is_array_end() { depth = depth - 1; }
         if depth == 0 { return clauses; }
         block.push(line);
@@ -155,11 +155,12 @@ fn or_conjunction(
     let or_verifier = Verifier::new(&mut or_transcript);
     let mut verifier_buffer = VerifierBuffer::new(or_verifier);
 
+    let mut local_index = index + 1;
     for clause in clauses {
         for line in clause {
-            parse_gadget(iter, &line, assignments, &mut verifier_buffer, index);
+            parse_gadget(iter, &line, assignments, &mut verifier_buffer, local_index);
+            local_index = local_index + 1;
         }
-
         verifier_buffer.rewind();
     }
 
