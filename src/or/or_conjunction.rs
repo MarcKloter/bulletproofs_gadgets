@@ -1,15 +1,27 @@
 use bulletproofs::r1cs::{ConstraintSystem, LinearCombination};
 use curve25519_dalek::scalar::Scalar;
-use cs_buffer::ConstraintSystemBuffer;
+use cs_buffer::{ConstraintSystemBuffer, Operation};
 
 pub fn or(main: &mut dyn ConstraintSystem, buffer: &dyn ConstraintSystemBuffer) {
     let mut constraints_vec: Vec<Vec<LinearCombination>> = Vec::new();
-    for (multiplications, multiplication_allocations, constraints) in buffer.buffer() {
-        for assignment in multiplication_allocations { 
-            assert!(main.allocate_multiplier(assignment.clone()).is_ok()); 
+    for operations in buffer.buffer() {
+        let mut constraints: Vec<LinearCombination> = Vec::new();
+
+        for operation in operations {
+            match operation {
+                Operation::Multiply((left, right)) => {
+                    main.multiply(left.clone(), right.clone());
+                },
+                Operation::AllocateMultiplier(assignment) => { 
+                    assert!(main.allocate_multiplier(assignment.clone()).is_ok());
+                },
+                Operation::Constrain(lc) => {
+                    constraints.push(lc.clone());
+                }
+            }
         }
-        for (left, right) in multiplications { main.multiply(left.clone(), right.clone()); }
-        constraints_vec.push(constraints.clone());
+
+        constraints_vec.push(constraints);
     }
 
     let cartesian_product: Vec<Vec<LinearCombination>> = cartesian_product(constraints_vec);

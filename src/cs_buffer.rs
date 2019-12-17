@@ -2,40 +2,31 @@ use bulletproofs::r1cs::{ConstraintSystem, Prover, Verifier, Variable, LinearCom
 use crate::curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 
+#[derive(Clone)]
+pub enum Operation {
+    Multiply((LinearCombination, LinearCombination)),
+    AllocateMultiplier(Option<(Scalar, Scalar)>),
+    Constrain(LinearCombination)
+}
+
 pub trait ConstraintSystemBuffer {
-    fn multiplications(&self) -> &Vec<(LinearCombination, LinearCombination)>;
-
-    fn constraints(&self) -> &Vec<LinearCombination>;
-
-    /// stores the current multiply and constrain buffer in the buffer vec
+    /// stores the current multiply and constrain buffers in the buffer vec
     fn rewind(&mut self);
 
-    fn buffer(&self) -> &Vec<(
-        Vec<(LinearCombination, LinearCombination)>,
-        Vec<Option<(Scalar, Scalar)>>,
-        Vec<LinearCombination>
-    )>;
+    fn buffer(&self) -> &Vec<Vec<Operation>>;
 }
 
 pub struct ProverBuffer<'t, 'g> {
     prover: Prover<'t, 'g>,
-    multiply_buffer: Vec<(LinearCombination, LinearCombination)>,
-    multiply_allocation_buffer: Vec<Option<(Scalar, Scalar)>>,
-    constrain_buffer: Vec<LinearCombination>,
-    cached_buffers: Vec<(
-        Vec<(LinearCombination, LinearCombination)>, 
-        Vec<Option<(Scalar, Scalar)>>, 
-        Vec<LinearCombination>
-    )>
+    operation_buffer: Vec<Operation>,
+    cached_buffers: Vec<Vec<Operation>>
 }
 
 impl<'t, 'g> ProverBuffer<'t, 'g> {
     pub fn new(prover: Prover<'t, 'g>) -> ProverBuffer<'t, 'g> {
         ProverBuffer {
             prover: prover,
-            multiply_buffer: Vec::new(),
-            multiply_allocation_buffer: Vec::new(),
-            constrain_buffer: Vec::new(),
+            operation_buffer: Vec::new(),
             cached_buffers: Vec::new()
         }
     }
@@ -52,29 +43,12 @@ impl<'t, 'g> ProverBuffer<'t, 'g> {
 }
 
 impl<'t, 'g> ConstraintSystemBuffer for ProverBuffer<'t, 'g> {
-    fn multiplications(&self) -> &Vec<(LinearCombination, LinearCombination)> {
-        &self.multiply_buffer
-    }
-
-    fn constraints(&self) -> &Vec<LinearCombination> {
-        &self.constrain_buffer
-    }
-    
     fn rewind(&mut self) {
-        self.cached_buffers.push((
-            self.multiply_buffer.clone(), 
-            self.multiply_allocation_buffer.clone(), 
-            self.constrain_buffer.clone()
-        ));
-        self.multiply_buffer = Vec::new();
-        self.constrain_buffer = Vec::new();
+        self.cached_buffers.push(self.operation_buffer.clone());
+        self.operation_buffer = Vec::new();
     }
 
-    fn buffer(&self) -> &Vec<(
-        Vec<(LinearCombination, LinearCombination)>, 
-        Vec<Option<(Scalar, Scalar)>>, 
-        Vec<LinearCombination>
-    )> {
+    fn buffer(&self) -> &Vec<Vec<Operation>> {
         &self.cached_buffers
     }
 }
@@ -85,7 +59,7 @@ impl<'t, 'g> ConstraintSystem for ProverBuffer<'t, 'g> {
     }
 
     fn multiply(&mut self, left: LinearCombination, right: LinearCombination) -> (Variable, Variable, Variable) {
-        self.multiply_buffer.push((left.clone(), right.clone()));
+        self.operation_buffer.push(Operation::Multiply((left.clone(), right.clone())));
         self.prover.multiply(left, right)
     }
 
@@ -95,64 +69,39 @@ impl<'t, 'g> ConstraintSystem for ProverBuffer<'t, 'g> {
 
     fn allocate_multiplier(&mut self, input_assignments: Option<(Scalar, Scalar)>) -> Result<(Variable, Variable, Variable), R1CSError> {
         let (l, r) = input_assignments.ok_or(R1CSError::MissingAssignment)?;
-        self.multiply_allocation_buffer.push(Some((l.clone(), r.clone())));
+        self.operation_buffer.push(Operation::AllocateMultiplier(Some((l.clone(), r.clone()))));
         self.prover.allocate_multiplier(Some((l, r)))
     }
     
     fn constrain(&mut self, lc: LinearCombination) {
-        self.constrain_buffer.push(lc.clone());
+        self.operation_buffer.push(Operation::Constrain(lc.clone()));
         self.prover.constrain(lc);
     }
 }
 
 pub struct VerifierBuffer<'t> {
     verifier: Verifier<'t>,
-    multiply_buffer: Vec<(LinearCombination, LinearCombination)>,
-    multiply_allocation_buffer: Vec<Option<(Scalar, Scalar)>>,
-    constrain_buffer: Vec<LinearCombination>,
-    cached_buffers: Vec<(
-        Vec<(LinearCombination, LinearCombination)>, 
-        Vec<Option<(Scalar, Scalar)>>,
-        Vec<LinearCombination>)
-    >
+    operation_buffer: Vec<Operation>,
+    cached_buffers: Vec<Vec<Operation>>
 }
 
 impl<'t> VerifierBuffer<'t> {
     pub fn new(verifier: Verifier<'t>) -> VerifierBuffer<'t> {
         VerifierBuffer {
             verifier: verifier,
-            multiply_buffer: Vec::new(),
-            multiply_allocation_buffer: Vec::new(),
-            constrain_buffer: Vec::new(),
+            operation_buffer: Vec::new(),
             cached_buffers: Vec::new()
         }
     }
 }
 
-impl<'t> ConstraintSystemBuffer for VerifierBuffer<'t> {
-    fn multiplications(&self) -> &Vec<(LinearCombination, LinearCombination)> {
-        &self.multiply_buffer
-    }
-
-    fn constraints(&self) -> &Vec<LinearCombination> {
-        &self.constrain_buffer
-    }
-    
+impl<'t> ConstraintSystemBuffer for VerifierBuffer<'t> {    
     fn rewind(&mut self) {
-        self.cached_buffers.push((
-            self.multiply_buffer.clone(), 
-            self.multiply_allocation_buffer.clone(), 
-            self.constrain_buffer.clone()
-        ));
-        self.multiply_buffer = Vec::new();
-        self.constrain_buffer = Vec::new();
+        self.cached_buffers.push(self.operation_buffer.clone());
+        self.operation_buffer = Vec::new();
     }
 
-    fn buffer(&self) -> &Vec<(
-        Vec<(LinearCombination, LinearCombination)>, 
-        Vec<Option<(Scalar, Scalar)>>,
-        Vec<LinearCombination>
-    )> {
+    fn buffer(&self) -> &Vec<Vec<Operation>> {
         &self.cached_buffers
     }
 }
@@ -163,7 +112,7 @@ impl<'t> ConstraintSystem for VerifierBuffer<'t> {
     }
 
     fn multiply(&mut self, left: LinearCombination, right: LinearCombination) -> (Variable, Variable, Variable) {
-        self.multiply_buffer.push((left.clone(), right.clone()));
+        self.operation_buffer.push(Operation::Multiply((left.clone(), right.clone())));
         self.verifier.multiply(left, right)
     }
 
@@ -172,12 +121,12 @@ impl<'t> ConstraintSystem for VerifierBuffer<'t> {
     }
 
     fn allocate_multiplier(&mut self, _: Option<(Scalar, Scalar)>) -> Result<(Variable, Variable, Variable), R1CSError> {
-        self.multiply_allocation_buffer.push(None);
+        self.operation_buffer.push(Operation::AllocateMultiplier(None));
         self.verifier.allocate_multiplier(None)
     }
     
     fn constrain(&mut self, lc: LinearCombination) {
-        self.constrain_buffer.push(lc.clone());
+        self.operation_buffer.push(Operation::Constrain(lc.clone()));
         self.verifier.constrain(lc);
     }
 }
