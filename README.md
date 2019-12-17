@@ -1,6 +1,6 @@
 # bulletproofs_gadgets
-[![build](https://github.com/MarcKloter/bulletproofs_gadgets/workflows/build/badge.svg)](https://github.com/MarcKloter/bulletproofs_gadgets/actions)
-[![integration tests](https://github.com/MarcKloter/bulletproofs_gadgets/workflows/Integration%20Tests/badge.svg)](https://github.com/MarcKloter/bulletproofs_gadgets/actions)
+[![build](https://github.com/MarcKloter/bulletproofs_gadgets/workflows/build/badge.svg)](https://github.com/MarcKloter/bulletproofs_gadgets/actions?query=workflow:build)
+[![integration tests](https://github.com/MarcKloter/bulletproofs_gadgets/workflows/Integration%20Tests/badge.svg)](https://github.com/MarcKloter/bulletproofs_gadgets/actions?query=workflow:"Integration+Tests")
 
 This repository contains r1cs gadgets to use with [dalek-cryptographys implementation of Bulletproofs](https://github.com/dalek-cryptography/bulletproofs) along with the definition of a mini-language to combine these gadgets into statements and a parser for execution. 
 
