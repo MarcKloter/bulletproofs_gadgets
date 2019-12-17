@@ -33,3 +33,59 @@ pub fn range_proof(
     // Enforce that x = Sum(b_i * 2^i, i = 0..n-1)
     cs.constrain(x);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use merlin::Transcript;
+    use bulletproofs::{BulletproofGens, PedersenGens};
+    use conversions::{be_to_scalar};
+    use bulletproofs::r1cs::{Prover, Verifier};
+
+    #[test]
+    fn test_range_proof_1() {
+        let x_assignment: Scalar = be_to_scalar(&vec![
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e
+        ]);
+
+        let x: LinearCombination = x_assignment.into();
+
+        let n = 56;
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(256, 1);
+
+        let mut prover_transcript = Transcript::new(b"RangeProof");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+        range_proof(&mut prover, x.clone(), n, Some(x_assignment));
+        let proof = prover.prove(&bp_gens).unwrap();
+        
+        let mut verifier_transcript = Transcript::new(b"RangeProof");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        range_proof(&mut verifier, x.clone(), n, None);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_ok());
+    }
+    #[test]
+    fn test_range_proof_2() {
+        let x_assignment: Scalar = be_to_scalar(&vec![
+            0x05, 0x22, 0xa6, 0x4d, 0x7b, 0x93, 0x1e
+        ]);
+
+        let x: LinearCombination = x_assignment.into();
+
+        let n = 48;
+
+        let pc_gens = PedersenGens::default();
+        let bp_gens = BulletproofGens::new(256, 1);
+
+        let mut prover_transcript = Transcript::new(b"RangeProof");
+        let mut prover = Prover::new(&pc_gens, &mut prover_transcript);
+        range_proof(&mut prover, x.clone(), n, Some(x_assignment));
+        let proof = prover.prove(&bp_gens).unwrap();
+
+        let mut verifier_transcript = Transcript::new(b"RangeProof");
+        let mut verifier = Verifier::new(&mut verifier_transcript);
+        range_proof(&mut verifier, x.clone(), n, None);
+        assert!(verifier.verify(&proof, &pc_gens, &bp_gens).is_err());
+    }
+}
