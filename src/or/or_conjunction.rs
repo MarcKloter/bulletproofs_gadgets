@@ -4,7 +4,7 @@ use cs_buffer::{ConstraintSystemBuffer, Operation};
 
 pub fn or(main: &mut dyn ConstraintSystem, buffer: &dyn ConstraintSystemBuffer) {
     let mut constraints_vec: Vec<Vec<LinearCombination>> = Vec::new();
-    for operations in buffer.buffer() {
+    for operations in buffer.buffer_cache() {
         let mut constraints: Vec<LinearCombination> = Vec::new();
 
         for operation in operations {
@@ -17,6 +17,9 @@ pub fn or(main: &mut dyn ConstraintSystem, buffer: &dyn ConstraintSystemBuffer) 
                 },
                 Operation::Constrain(lc) => {
                     constraints.push(lc.clone());
+                },
+                Operation::Commit(_) => {
+                    // nop, this was already committed to main
                 }
             }
         }

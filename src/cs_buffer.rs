@@ -6,14 +6,17 @@ use merlin::Transcript;
 pub enum Operation {
     Multiply((LinearCombination, LinearCombination)),
     AllocateMultiplier(Option<(Scalar, Scalar)>),
-    Constrain(LinearCombination)
+    Constrain(LinearCombination),
+    Commit(Vec<Scalar>)
 }
 
 pub trait ConstraintSystemBuffer {
     /// stores the current multiply and constrain buffers in the buffer vec
     fn rewind(&mut self);
 
-    fn buffer(&self) -> &Vec<Vec<Operation>>;
+    fn buffer(&self) -> &Vec<Operation>;
+
+    fn buffer_cache(&self) -> &Vec<Vec<Operation>>;
 }
 
 pub struct ProverBuffer<'t, 'g> {
@@ -38,7 +41,33 @@ impl<'t, 'g> ProverBuffer<'t, 'g> {
     }
 
     pub fn commit_drvd(&mut self, derived_witnesses: &Vec<(Option<Scalar>, Variable)>) {
-        self.commit(&derived_witnesses.into_iter().map(|derived| derived.0.unwrap()).collect());
+        let scalars = derived_witnesses.into_iter().map(|derived| derived.0.unwrap()).collect();
+        self.commit(&scalars);
+        self.operation_buffer.push(Operation::Commit(scalars));
+    }
+
+    pub fn initialize_from(
+        &mut self,
+        initialization: Vec<Vec<Operation>>,
+    ) {
+        for operations in initialization {
+            for operation in operations {
+                match operation {
+                    Operation::Multiply((left, right)) => {
+                        self.prover.multiply(left.clone(), right.clone());
+                    },
+                    Operation::AllocateMultiplier(assignment) => { 
+                        assert!(self.prover.allocate_multiplier(assignment.clone()).is_ok());
+                    },
+                    Operation::Constrain(lc) => {
+                        self.prover.constrain(lc.clone());
+                    },
+                    Operation::Commit(_) => {
+                        // nop
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -48,7 +77,11 @@ impl<'t, 'g> ConstraintSystemBuffer for ProverBuffer<'t, 'g> {
         self.operation_buffer = Vec::new();
     }
 
-    fn buffer(&self) -> &Vec<Vec<Operation>> {
+    fn buffer(&self) -> &Vec<Operation> {
+        &self.operation_buffer
+    }
+
+    fn buffer_cache(&self) -> &Vec<Vec<Operation>> {
         &self.cached_buffers
     }
 }
@@ -93,6 +126,30 @@ impl<'t> VerifierBuffer<'t> {
             cached_buffers: Vec::new()
         }
     }
+
+    pub fn initialize_from(
+        &mut self,
+        initialization: Vec<Vec<Operation>>,
+    ) {
+        for operations in initialization {
+            for operation in operations {
+                match operation {
+                    Operation::Multiply((left, right)) => {
+                        self.verifier.multiply(left.clone(), right.clone());
+                    },
+                    Operation::AllocateMultiplier(assignment) => { 
+                        assert!(self.verifier.allocate_multiplier(assignment.clone()).is_ok());
+                    },
+                    Operation::Constrain(lc) => {
+                        self.verifier.constrain(lc.clone());
+                    },
+                    Operation::Commit(_) => {
+                        // nop
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<'t> ConstraintSystemBuffer for VerifierBuffer<'t> {    
@@ -101,7 +158,11 @@ impl<'t> ConstraintSystemBuffer for VerifierBuffer<'t> {
         self.operation_buffer = Vec::new();
     }
 
-    fn buffer(&self) -> &Vec<Vec<Operation>> {
+    fn buffer(&self) -> &Vec<Operation> {
+        &self.operation_buffer
+    }
+
+    fn buffer_cache(&self) -> &Vec<Vec<Operation>> {
         &self.cached_buffers
     }
 }

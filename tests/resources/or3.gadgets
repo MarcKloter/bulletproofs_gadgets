@@ -1,0 +1,19 @@
+EQUALS W0 W1
+OR 
+[
+{
+EQUALS W0 W1
+OR 
+[
+{
+EQUALS W0 W2
+}
+{
+EQUALS W0 W1
+}
+]
+}
+{
+EQUALS W0 W2
+}
+]

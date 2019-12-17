@@ -186,7 +186,6 @@ impl Assignments {
         for scalar in self.derived_witnesses.clone() {
             prover_buffer.commit(&vec![scalar]);
         }
-
     }
 
     pub fn cache_derived_wtns(&mut self, derived_witnesses: Vec<(Option<Scalar>, Variable)>) {

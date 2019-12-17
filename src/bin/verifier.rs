@@ -21,7 +21,7 @@ use bulletproofs_gadgets::inequality::inequality_gadget::Inequality;
 use bulletproofs_gadgets::conversions::{be_to_scalar, be_to_scalars};
 use bulletproofs_gadgets::lalrpop::ast::*;
 use bulletproofs_gadgets::lalrpop::assignment_parser::*;
-use bulletproofs_gadgets::cs_buffer::{ConstraintSystemBuffer, VerifierBuffer};
+use bulletproofs_gadgets::cs_buffer::{ConstraintSystemBuffer, VerifierBuffer, Operation};
 use bulletproofs_gadgets::or::or_conjunction::or;
 
 use std::io::prelude::*;
@@ -51,6 +51,11 @@ fn main() -> std::io::Result<()> {
     let mut verifier_transcript = Transcript::new(filename.as_bytes());
     let pc_gens = PedersenGens::default();
     let mut verifier = Verifier::new(&mut verifier_transcript);
+    
+    // ---------- CREATE BUFFER ----------
+    let mut buffer_transcript = Transcript::new(b"BufferTranscript");
+    let buffer_verifier = Verifier::new(&mut buffer_transcript);
+    let mut verifier_buffer = VerifierBuffer::new(buffer_verifier);
 
     // ---------- PRASE .proof FILE ----------
     let mut file = File::open(format!("{}{}", filename, PROOF_EXT))?;
@@ -73,8 +78,12 @@ fn main() -> std::io::Result<()> {
         let (index, line) = iter.next().unwrap();
         let line = line.unwrap();
 
-        parse_gadget(&mut iter, &line, &assignments, &mut verifier, index);
+        let local_initialization = vec![verifier_buffer.buffer().into_iter().map(|op| op.clone()).collect()];
+        parse_conjunction(&mut iter, &line, &assignments, &mut verifier_buffer, local_initialization);
+        parse_gadget(&line, &assignments, &mut verifier_buffer, index);
     }
+
+    assign_buffer(&mut verifier, &verifier_buffer);
 
     // ---------- VERIFY PROOF ----------
     let bp_gens = BulletproofGens::new(round_pow2(verifier.get_num_vars()), 1);
@@ -91,11 +100,27 @@ fn main() -> std::io::Result<()> {
     }
 }
 
+fn assign_buffer(main: &mut dyn ConstraintSystem, buffer: &VerifierBuffer) {
+    for operation in buffer.buffer() {
+        match operation {
+            Operation::Multiply((left, right)) => {
+                main.multiply(left.clone(), right.clone());
+            },
+            Operation::AllocateMultiplier(assignment) => { 
+                assert!(main.allocate_multiplier(assignment.clone()).is_ok());
+            },
+            Operation::Constrain(lc) => {
+                main.constrain(lc.clone());
+            },
+            _ => { }
+        }
+    }
+}
+
 fn parse_gadget(
-    iter: &mut Peekable<Enumerate<Lines<BufReader<File>>>>,
     line: &String,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {
     match get_gadget_op(line) {
@@ -106,7 +131,19 @@ fn parse_gadget(
         GadgetOp::LessThan => less_than_gadget(line, assignments, verifier, index),
         GadgetOp::Inequality => inequality_gadget(line, assignments, verifier, index),
         GadgetOp::SetMembership => set_membership_gadget(line, assignments, verifier, index),
-        GadgetOp::Or => or_conjunction(iter, assignments, verifier, index),
+        _ => {}
+    }
+}
+
+fn parse_conjunction(
+    iter: &mut Peekable<Enumerate<Lines<BufReader<File>>>>,
+    line: &String,
+    assignments: &Assignments,
+    verifier: &mut VerifierBuffer,
+    initialization: Vec<Vec<Operation>>
+) {
+    match get_gadget_op(line) {
+        GadgetOp::Or => or_conjunction(iter, assignments, verifier, initialization),
         _ => {}
     }
 }
@@ -117,51 +154,33 @@ fn get_gadget_op(line: &String) -> GadgetOp {
     gadget_op.parse::<GadgetOp>().expect(&error)
 }
 
-fn get_clauses(
-    iter: &mut Peekable<Enumerate<Lines<BufReader<File>>>>
-) -> Vec<Vec<String>> {
-    let mut clauses = Vec::new();
-    let mut block = Vec::new();
+fn or_conjunction(
+    iter: &mut Peekable<Enumerate<Lines<BufReader<File>>>>,
+    assignments: &Assignments,
+    verifier: &mut VerifierBuffer,
+    initialization: Vec<Vec<Operation>>
+) {
+    let mut or_transcript = Transcript::new(b"OrTranscript");
+    let or_verifier = Verifier::new(&mut or_transcript);
+    let mut verifier_buffer = VerifierBuffer::new(or_verifier);
+    verifier_buffer.initialize_from(initialization.clone());
 
     if iter.peek().is_none() {
         panic!("unexpected end of input");
     }
 
-    let mut depth = 0;
-
     while iter.peek().is_some() {
-        let (_, line) = iter.next().unwrap();
+        let (local_index, line) = iter.next().unwrap();
         let line = line.unwrap();
         let gadget_op = get_gadget_op(&line);
-        if gadget_op.is_block_end() { clauses.push(block); block = Vec::new(); }
-        if gadget_op.is_array_start() { depth = depth + 1; }
-        if gadget_op.is_array_end() { depth = depth - 1; }
-        if depth == 0 { return clauses; }
-        block.push(line);
-    }
-
-    panic!("array or code block was opened but never closed");
-}
-
-fn or_conjunction(
-    iter: &mut Peekable<Enumerate<Lines<BufReader<File>>>>,
-    assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
-    index: usize
-) {
-    let clauses: Vec<Vec<String>> = get_clauses(iter);
-
-    let mut or_transcript = Transcript::new(b"OrTranscript");
-    let or_verifier = Verifier::new(&mut or_transcript);
-    let mut verifier_buffer = VerifierBuffer::new(or_verifier);
-
-    let mut local_index = index + 1;
-    for clause in clauses {
-        for line in clause {
-            parse_gadget(iter, &line, assignments, &mut verifier_buffer, local_index);
-            local_index = local_index + 1;
+        if gadget_op.is_array_end() { break; }
+        if gadget_op.is_block_end() { verifier_buffer.rewind(); }
+        else {
+            let mut local_initialization: Vec<Vec<Operation>> = initialization.clone();
+            local_initialization.push(verifier_buffer.buffer().into_iter().map(|op| op.clone()).collect());
+            parse_conjunction(iter, &line, assignments, &mut verifier_buffer, local_initialization);
+            parse_gadget(&line, assignments, &mut verifier_buffer, local_index);
         }
-        verifier_buffer.rewind();
     }
 
     or(verifier, &verifier_buffer);
@@ -170,7 +189,7 @@ fn or_conjunction(
 fn bounds_check_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {
     let bound_parser = gadget_grammar::BoundGadgetParser::new();
@@ -190,7 +209,7 @@ fn bounds_check_gadget(
 fn mimc_hash_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {
     let hash_parser = gadget_grammar::HashGadgetParser::new();
@@ -215,7 +234,7 @@ fn mimc_hash_gadget(
 fn merkle_tree_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {
     let merkle_parser = gadget_grammar::MerkleGadgetParser::new();
@@ -245,7 +264,7 @@ fn merkle_tree_gadget(
 fn equality_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem
+    verifier: &mut VerifierBuffer
 ) {
     let equality_parser = gadget_grammar::EqualityGadgetParser::new();
     let (left, right) = equality_parser.parse(&line).unwrap();
@@ -265,7 +284,7 @@ fn equality_gadget(
 fn less_than_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {
     let less_than_parser = gadget_grammar::LessThanGadgetParser::new();
@@ -284,7 +303,7 @@ fn less_than_gadget(
 fn inequality_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {
     let inequality_parser = gadget_grammar::InequalityGadgetParser::new();
@@ -315,7 +334,7 @@ fn inequality_gadget(
 fn set_membership_gadget(
     line: &str,
     assignments: &Assignments,
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     index: usize
 ) {  
     let set_membership_parser = gadget_grammar::SetMembershipGadgetParser::new();
@@ -405,7 +424,7 @@ fn set_membership_gadget(
 }
 
 fn hash_witness(
-    verifier: &mut dyn ConstraintSystem,
+    verifier: &mut VerifierBuffer,
     var: Var,
     index: usize,
     subroutine: usize,
