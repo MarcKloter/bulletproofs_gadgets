@@ -1,5 +1,4 @@
 use bulletproofs::r1cs::{ConstraintSystem, LinearCombination};
-use curve25519_dalek::scalar::Scalar;
 use cs_buffer::{ConstraintSystemBuffer, Operation};
 
 pub fn or(main: &mut dyn ConstraintSystem, buffer: &dyn ConstraintSystemBuffer) {
@@ -29,9 +28,9 @@ pub fn or(main: &mut dyn ConstraintSystem, buffer: &dyn ConstraintSystemBuffer) 
 
     let cartesian_product: Vec<Vec<LinearCombination>> = cartesian_product(constraints_vec);
     for constraints in cartesian_product { 
-        let mut constraint_product: LinearCombination = Scalar::one().into();
-        for constraint in constraints {
-            let (_, _, product) = main.multiply(constraint_product.clone(), constraint.clone());
+        let mut constraint_product: LinearCombination = constraints[0].clone();
+        for i in 1..constraints.len() {
+            let (_, _, product) = main.multiply(constraint_product.clone(), constraints[i].clone());
             constraint_product = product.into();
         }
         main.constrain(constraint_product); 
@@ -78,6 +77,7 @@ mod tests {
     use bulletproofs::r1cs::{Prover, Verifier, Variable};
     use cs_buffer::{ProverBuffer, VerifierBuffer};
     use curve25519_dalek::ristretto::CompressedRistretto;
+    use curve25519_dalek::scalar::Scalar;
     use gadget::Gadget;
 
     #[test]
