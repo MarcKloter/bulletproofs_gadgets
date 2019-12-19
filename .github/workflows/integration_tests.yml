@@ -54,3 +54,5 @@ jobs:
         cargo run --release --bin verifier tests/resources/or3
         cargo run --release --bin prover tests/resources/or4
         cargo run --release --bin verifier tests/resources/or4
+        cargo run --release --bin prover tests/resources/or5
+        cargo run --release --bin verifier tests/resources/or5
